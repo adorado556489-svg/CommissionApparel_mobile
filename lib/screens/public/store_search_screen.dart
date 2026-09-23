@@ -182,9 +182,9 @@ class _StoreSearchScreenState extends State<StoreSearchScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.success.withOpacity(0.1),
+                        color: AppTheme.success.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.success.withOpacity(0.3)),
+                        border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
                       ),
                       child: const Text('OPEN', style: TextStyle(color: AppTheme.success, fontSize: 10, fontWeight: FontWeight.bold)),
                     ),

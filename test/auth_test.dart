@@ -37,7 +37,7 @@ void main() {
     });
 
     test('Invalid email/password login', () {
-      final error = authService.login('wrong@example.com', 'password');
+      final error = authService.login('wrong@example.com', 'password123');
       expect(error, 'Invalid email or password.');
       expect(authService.isAuthenticated, isFalse);
     });
@@ -50,7 +50,7 @@ void main() {
       try {
         dummyUsers[declinedIndex] = dummyUsers[declinedIndex].copyWith(status: 'declined');
 
-        final error = authService.login(targetEmail, 'password');
+        final error = authService.login(targetEmail, 'password123');
         expect(error, 'Your account has been declined. Please contact support.');
         expect(authService.isAuthenticated, isFalse);
       } finally {
@@ -59,7 +59,7 @@ void main() {
     });
 
     test('Logout clears session', () {
-      authService.login('admin@commissionapparel.com', 'password');
+      authService.login('admin@commissionapparel.com', 'password123');
       expect(authService.isAuthenticated, isTrue);
       authService.logout();
       expect(authService.isAuthenticated, isFalse);

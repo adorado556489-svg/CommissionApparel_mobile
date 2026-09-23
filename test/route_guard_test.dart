@@ -31,7 +31,7 @@ void main() {
 
     testWidgets('Authenticated user accessing guest-only route redirects to home', (tester) async {
       final auth = AuthService();
-      auth.login('parent@test.com', 'password'); // Role: Parent
+      auth.login('parent@test.com', 'password123'); // Role: Parent
       
       await tester.pumpWidget(createTestApp(auth, AppRoutes.login));
       await tester.pumpAndSettle();
@@ -43,7 +43,7 @@ void main() {
 
     testWidgets('Unauthorized role access (Parent to Admin route) redirects to home', (tester) async {
       final auth = AuthService();
-      auth.login('parent@test.com', 'password');
+      auth.login('parent@test.com', 'password123');
       
       await tester.pumpWidget(createTestApp(auth, AppRoutes.adminDashboard));
       await tester.pumpAndSettle();
@@ -54,7 +54,7 @@ void main() {
 
     testWidgets('Authorized role access (Coach to Coach route) allowed', (tester) async {
       final auth = AuthService();
-      auth.login('coach@example.com', 'password');
+      auth.login('coach@example.com', 'password123');
       
       await tester.pumpWidget(createTestApp(auth, AppRoutes.coachDashboard));
       await tester.pumpAndSettle();
@@ -66,7 +66,7 @@ void main() {
 
     testWidgets('Authorized role access (Admin to Coach route) allowed', (tester) async {
       final auth = AuthService();
-      auth.login('admin@commissionapparel.com', 'password');
+      auth.login('admin@commissionapparel.com', 'password123');
       
       // Admin should be able to access Coach routes
       await tester.pumpWidget(createTestApp(auth, AppRoutes.coachDashboard));

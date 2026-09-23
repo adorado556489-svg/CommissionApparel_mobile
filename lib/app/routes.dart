@@ -9,10 +9,19 @@ import '../screens/public/catalog_screen.dart';
 import '../screens/public/catalog_collection_screen.dart';
 import '../screens/public/store_search_screen.dart';
 import '../screens/public/store_detail_screen.dart';
+import '../screens/public/parent_order_form_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
+import '../screens/auth/forgot_password_screen.dart';
+import '../screens/auth/reset_password_screen.dart';
 import '../screens/coach/coach_dashboard_screen.dart';
+import '../screens/coach/coach_order_edit_screen.dart';
+import '../screens/coach/direct_order_form_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
+import '../screens/admin/admin_coach_edit_screen.dart';
+import '../screens/admin/admin_batch_show_screen.dart';
+import '../screens/admin/admin_content_screens.dart';
+import '../screens/admin/admin_store_edit_screen.dart';
 import '../screens/admin/admin_store_edit_screen.dart';
 
 /// Centralized route definitions and route generation with role-based guards.
@@ -36,6 +45,7 @@ class AppRoutes {
   static const String catalogCollection = '/catalog/collection';
   static const String storeSearch = '/store/search';
   static const String storeDetail = '/store/detail';
+  static const String storeOrder = '/store/order';
   static const String quote = '/quote';
   static const String quoteSuccess = '/quote/success';
   static const String testimonials = '/testimonials';
@@ -72,6 +82,14 @@ class AppRoutes {
         return _buildRoute(
           settings,
           const StoreSearchScreen(),
+        );
+
+      case storeOrder:
+        return _buildRoute(
+          settings,
+          ParentOrderFormScreen(
+            storeId: settings.arguments as String? ?? 'store-1',
+          ),
         );
 
       case storeDetail:
@@ -118,10 +136,16 @@ class AppRoutes {
         );
 
       case forgotPassword:
+        return _buildRoute(
+          settings,
+          const ForgotPasswordScreen(),
+          guestOnly: true,
+        );
+
       case resetPassword:
         return _buildRoute(
           settings,
-          _PlaceholderScreen(title: _titleForRoute(settings.name)),
+          const ResetPasswordScreen(),
           guestOnly: true,
         );
 
@@ -135,11 +159,22 @@ class AppRoutes {
         );
 
       case coachOrderEdit:
+        final orderId = settings.arguments as String?;
         return _buildRoute(
           settings,
-          _PlaceholderScreen(title: _titleForRoute(settings.name)),
+          orderId != null 
+              ? CoachOrderEditScreen(orderId: orderId)
+              : const _PlaceholderScreen(title: 'Edit Order (Missing ID)'),
           requireAuth: true,
           allowedRoles: [UserRole.coach, UserRole.admin],
+        );
+
+      case '/coach/direct-order/submit':
+        return _buildRoute(
+          settings,
+          const DirectOrderFormScreen(),
+          requireAuth: true,
+          allowedRoles: [UserRole.coach],
         );
 
       // ── Admin routes (auth + admin only) ──────────────────────────────
@@ -152,7 +187,47 @@ class AppRoutes {
         );
 
       case adminStoreEdit:
+        final storeId = settings.arguments as String?;
+        return _buildRoute(
+          settings,
+          storeId != null 
+              ? AdminStoreEditScreen(storeId: storeId)
+              : const _PlaceholderScreen(title: 'Edit Store (Missing ID)'),
+          requireAuth: true,
+          allowedRoles: [UserRole.admin],
+        );
+        
       case adminCoachEdit:
+        final coachId = settings.arguments as String?;
+        return _buildRoute(
+          settings,
+          coachId != null 
+              ? AdminCoachEditScreen(coachId: coachId)
+              : const _PlaceholderScreen(title: 'Edit Coach (Missing ID)'),
+          requireAuth: true,
+          allowedRoles: [UserRole.admin],
+        );
+
+      case '/admin/batch/show':
+        final batchId = settings.arguments as String?;
+        return _buildRoute(
+          settings,
+          batchId != null 
+              ? AdminBatchShowScreen(batchId: batchId)
+              : const _PlaceholderScreen(title: 'Show Batch (Missing ID)'),
+          requireAuth: true,
+          allowedRoles: [UserRole.admin],
+        );
+        
+      case '/admin/content/hero':
+        return _buildRoute(settings, const AdminHeroEditScreen(), requireAuth: true, allowedRoles: [UserRole.admin]);
+      case '/admin/content/landing':
+        return _buildRoute(settings, const AdminLandingCollectionsScreen(), requireAuth: true, allowedRoles: [UserRole.admin]);
+      case '/admin/content/testimonials':
+        return _buildRoute(settings, const AdminTestimonialsScreen(), requireAuth: true, allowedRoles: [UserRole.admin]);
+      case '/admin/content/quotes':
+        return _buildRoute(settings, const AdminQuotesScreen(), requireAuth: true, allowedRoles: [UserRole.admin]);
+
       case adminOrderEdit:
       case adminDirectBatch:
         return _buildRoute(
@@ -161,7 +236,6 @@ class AppRoutes {
           requireAuth: true,
           allowedRoles: [UserRole.admin],
         );
-
       // ── Default / 404 ─────────────────────────────────────────────────
       default:
         return _buildRoute(
@@ -327,3 +401,6 @@ class _PlaceholderScreen extends StatelessWidget {
     );
   }
 }
+
+
+

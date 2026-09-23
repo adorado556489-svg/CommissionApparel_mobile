@@ -30,7 +30,7 @@ void main() {
 
   group('Phase 5A - Coach Store Functionality', () {
     testWidgets('Coach with existing store sees dashboard (cannot create another)', (tester) async {
-      auth.login('coach@example.com', 'password'); // Marcus
+      auth.login('coach@example.com', 'password123'); // Marcus
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -39,7 +39,7 @@ void main() {
     });
 
     testWidgets('Coach without store can create a store', (tester) async {
-      auth.login('david.chen@trackclub.org', 'password'); // David Chen
+      auth.login('david.chen@trackclub.org', 'password123'); // David Chen
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -55,7 +55,7 @@ void main() {
     });
 
     testWidgets('Coach can set deadline', (tester) async {
-      auth.login('david.chen@trackclub.org', 'password');
+      auth.login('david.chen@trackclub.org', 'password123');
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -69,7 +69,7 @@ void main() {
     });
 
     testWidgets('Coach can add assigned DesignCatalog item', (tester) async {
-      auth.login('david.chen@trackclub.org', 'password');
+      auth.login('david.chen@trackclub.org', 'password123');
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -83,7 +83,7 @@ void main() {
     });
 
     testWidgets('Coach cannot set retail price below wholesale; can set valid retail pricing', (tester) async {
-      auth.login('coach@example.com', 'password');
+      auth.login('coach@example.com', 'password123');
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -105,7 +105,7 @@ void main() {
     });
 
     testWidgets('Empty roster cannot be submitted', (tester) async {
-      auth.login('david.chen@trackclub.org', 'password'); // David has no orders
+      auth.login('david.chen@trackclub.org', 'password123'); // David has no orders
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -115,7 +115,7 @@ void main() {
     });
 
     testWidgets('Valid unbatched orders can be submitted; locks the store', (tester) async {
-      auth.login('coach@example.com', 'password'); // Marcus has unbatched order-1
+      auth.login('coach@example.com', 'password123'); // Marcus has unbatched order-1
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 

@@ -56,6 +56,17 @@ class StoreDetailScreen extends StatelessWidget {
           ],
         ),
       ),
+      floatingActionButton: store.isAcceptingOrders && items.isNotEmpty
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.of(context).pushNamed('/store/order', arguments: store.id);
+              },
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.shopping_cart),
+              label: const Text('PLACE ORDER', style: TextStyle(fontWeight: FontWeight.bold)),
+            )
+          : null,
     );
   }
 
@@ -63,16 +74,16 @@ class StoreDetailScreen extends StatelessWidget {
     return Container(
       height: 200,
       width: double.infinity,
-      color: AppTheme.primary.withOpacity(0.1),
+      color: AppTheme.primary.withValues(alpha: 0.1),
       child: Stack(
         fit: StackFit.expand,
         children: [
           Image.asset(
             'assets/images/team-store-background-v2.png',
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(color: AppTheme.primary.withOpacity(0.2)),
+            errorBuilder: (context, error, stackTrace) => Container(color: AppTheme.primary.withValues(alpha: 0.2)),
           ),
-          Container(color: Colors.black.withOpacity(0.4)),
+          Container(color: Colors.black.withValues(alpha: 0.4)),
         ],
       ),
     );
@@ -155,7 +166,7 @@ class StoreDetailScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.warning.withOpacity(0.1),
+          color: AppTheme.warning.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppTheme.warning),
         ),
@@ -206,7 +217,7 @@ class StoreDetailScreen extends StatelessWidget {
         children: [
           Expanded(
             child: Container(
-              color: AppTheme.primary.withOpacity(0.05),
+              color: AppTheme.primary.withValues(alpha: 0.05),
               width: double.infinity,
               child: const Center(
                 child: Icon(Icons.image, size: 64, color: AppTheme.borderSubtle),
@@ -223,9 +234,9 @@ class StoreDetailScreen extends StatelessWidget {
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.secondary.withOpacity(0.1),
+                      color: AppTheme.secondary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppTheme.secondary.withOpacity(0.2)),
+                      border: Border.all(color: AppTheme.secondary.withValues(alpha: 0.2)),
                     ),
                     child: Text(
                       'PACKAGE',

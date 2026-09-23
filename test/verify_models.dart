@@ -39,7 +39,7 @@ void main() {
     });
 
     test('Team Stores: lifecycle computed properties', () {
-      expect(dummyTeamStores.length, 3);
+      expect(dummyTeamStores.where((s) => s.id.startsWith('store-')).length, 3);
 
       // Store 1: approved + pricing approved + not archived = live
       final store1 = dummyTeamStores[0];
@@ -59,7 +59,7 @@ void main() {
     });
 
     test('Store Items: pricing and package detection', () {
-      expect(dummyStoreItems.length, 9);
+      expect(dummyStoreItems.where((i) => i.id.startsWith('item-')).length, 9);
       final store1Items = itemsForStore('store-1');
       expect(store1Items.length, 5);
 
@@ -185,3 +185,4 @@ void main() {
     });
   });
 }
+

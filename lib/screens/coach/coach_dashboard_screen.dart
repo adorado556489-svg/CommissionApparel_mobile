@@ -1,8 +1,10 @@
 import 'dart:math';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/auth_service.dart';
+import '../../services/order_service.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/glass_panel.dart';
 import '../../app/theme.dart';
@@ -233,7 +235,8 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
             _buildTabs(),
             const SizedBox(height: 24),
             if (_activeTab == 'overview') _buildOverviewTab(),
-            if (_activeTab == 'create_order') _buildPlaceholderTab('Create Order'),
+            if (_activeTab == 'create_order') _buildDirectOrdersTab(),
+              if (_activeTab == 'profile') _buildProfileTab(),
             if (_activeTab == 'sales') _buildPlaceholderTab('Sales'),
           ],
         ),
@@ -242,14 +245,19 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
   }
 
   Widget _buildTabs() {
-    return Row(
-      children: [
-        _tabButton('Overview', 'overview'),
-        const SizedBox(width: 12),
-        _tabButton('Create Order', 'create_order'),
-        const SizedBox(width: 12),
-        _tabButton('Sales', 'sales'),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _tabButton('Overview', 'overview'),
+          const SizedBox(width: 12),
+          _tabButton('Direct Orders', 'create_order'),
+          const SizedBox(width: 12),
+          _tabButton('Sales', 'sales'),
+          const SizedBox(width: 12),
+          _tabButton('Profile', 'profile'),
+        ],
+      ),
     );
   }
 
@@ -269,6 +277,180 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
             color: isActive ? Colors.white : AppTheme.textMuted,
             fontWeight: FontWeight.bold,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDirectOrdersTab() {
+    final user = context.watch<AuthService>().currentUser!;
+    final draftOrders = dummyParentOrders.where((o) => o.teamStoreId == null && o.userId == user.id && o.status == 'Draft').toList();
+    final batchedOrders = dummyParentOrders.where((o) => o.teamStoreId == null && o.userId == user.id && o.batchId != null && !o.isArchived).toList();
+    
+    // Group batched orders by batchId
+    final Map<String, List<ParentOrder>> batches = {};
+    for (var o in batchedOrders) {
+      batches.putIfAbsent(o.batchId!, () => []).add(o);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Direct Orders', style: Theme.of(context).textTheme.headlineSmall),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pushNamed('/coach/direct-order/submit');
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Create Direct Order'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        if (draftOrders.isNotEmpty) ...[
+          Text('Drafts', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          ...draftOrders.map((o) => _buildOrderRow(o, isDraft: true)),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton(
+              onPressed: () {
+                final error = OrderService.finalizeDirectOrders(user);
+                if (error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Your direct orders have been submitted to The Commission Apparel!')));
+                  setState(() {});
+                }
+              },
+              child: const Text('Finalize Direct Orders'),
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
+        Text('Submitted Batches', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        if (batches.isEmpty)
+          const Text('No submitted batches.')
+        else
+          ...batches.entries.map((e) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ExpansionTile(
+                title: Text('Batch: ${e.key.split('-').last}'),
+                subtitle: Text('${e.value.length} Orders - Status: ${e.value.first.status}'),
+                children: [
+                  ...e.value.map((o) => _buildOrderRow(o)),
+                  ButtonBar(
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.download),
+                        label: const Text('Export CSV'),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('CSV Export Simulation Successful'))
+                          );
+                        },
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.archive),
+                        label: const Text('Archive Batch'),
+                        onPressed: () {
+                          OrderService.archiveDirectOrderBatch(user, e.key);
+                          setState(() {});
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Batch has been archived successfully.'))
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _buildOrderRow(ParentOrder order, {bool isDraft = false}) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        title: Text('${order.athleteFirstName} ${order.athleteLastName}'),
+        subtitle: Text(order.itemEntries.map((e) => e.name).join(', ')),
+        trailing: IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () {
+            Navigator.of(context).pushNamed('/coach/order/edit', arguments: order.id).then((_) => setState(() {}));
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileTab() {
+    final user = context.watch<AuthService>().currentUser!;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Coach Profile', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 24),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(8),
+                    image: user.logoPath != null 
+                        ? DecorationImage(image: FileImage(File(user.logoPath!)), fit: BoxFit.cover)
+                        : null,
+                  ),
+                  child: user.logoPath == null 
+                      ? const Icon(Icons.business, size: 48, color: Colors.grey)
+                      : null,
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(user.organization ?? 'No Organization', style: Theme.of(context).textTheme.titleLarge),
+                      const SizedBox(height: 8),
+                      Text('Coach: ${user.firstName} ${user.lastName}'),
+                      Text('Email: ${user.email}'),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.upload),
+                        label: const Text('Update Profile Logo'),
+                        onPressed: () async {
+                          final picked = await _picker.pickImage(source: ImageSource.gallery);
+                          if (picked != null) {
+                            final error = context.read<AuthService>().updateProfileLogo(picked.path);
+                            if (error == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Organization logo updated successfully.')));
+                            }
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Max file size: 5MB. Formats: JPG, PNG, WEBP.', style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

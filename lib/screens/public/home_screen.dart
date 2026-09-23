@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../data/dummy_content.dart';
@@ -36,21 +37,39 @@ class HomeScreen extends StatelessWidget {
     final title = SiteSetting.getValue(dummySiteSettings, 'hero_title') ?? 'CUSTOM TEAM APPAREL';
     final subtitle = SiteSetting.getValue(dummySiteSettings, 'hero_subtitle') ?? 'Premium quality custom jerseys and team gear.';
     final ctaText = SiteSetting.getValue(dummySiteSettings, 'hero_cta_text') ?? 'Request A Quote';
+    final mediaPath = SiteSetting.getValue(dummySiteSettings, 'hero_media_path');
+
+    Widget bgImage;
+    if (mediaPath != null && mediaPath.isNotEmpty && !mediaPath.startsWith('assets/')) {
+      bgImage = Image.file(
+        File(mediaPath), // Use dart:io indirectly or import dart:io
+        height: 400,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: 400,
+          width: double.infinity,
+          color: Colors.grey,
+        ),
+      );
+    } else {
+      bgImage = Image.asset(
+        mediaPath ?? 'assets/images/hero-banner.jpeg',
+        height: 400,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: 400,
+          width: double.infinity,
+          color: Colors.grey,
+        ),
+      );
+    }
 
     return Stack(
       children: [
         // Background Image
-        Image.asset(
-          'assets/images/hero-banner.jpeg',
-          height: 400,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            height: 400,
-            width: double.infinity,
-            color: Colors.grey,
-          ),
-        ),
+        bgImage,
         // Overlay
         Container(
           height: 400,

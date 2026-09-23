@@ -8,7 +8,7 @@
 /// batched (grouped by batchId) → submitted to admin for processing.
 class ParentOrder {
   final String id;
-  final String teamStoreId; // FK → TeamStore
+  final String? teamStoreId; // FK → TeamStore
   final String? userId; // FK → User (parent, null for direct orders)
   final String athleteFirstName;
   final String athleteLastName;
@@ -29,7 +29,7 @@ class ParentOrder {
 
   const ParentOrder({
     required this.id,
-    required this.teamStoreId,
+    this.teamStoreId,
     this.userId,
     required this.athleteFirstName,
     required this.athleteLastName,
@@ -55,7 +55,7 @@ class ParentOrder {
   String get athleteName => '$athleteFirstName $athleteLastName';
 
   /// Whether this is a direct order placed by admin/coach (no parent user).
-  bool get isDirectOrder => userId == null;
+  bool get isDirectOrder => teamStoreId == null;
 
   /// Whether the order has been batched for submission.
   bool get isBatched => batchId != null;

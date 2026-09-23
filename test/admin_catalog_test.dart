@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:commission_apparel_flutter/app/theme.dart';
-import 'package:commission_apparel_flutter/data/dummy_catalog.dart';
-import 'package:commission_apparel_flutter/data/dummy_stores.dart';
-import 'package:commission_apparel_flutter/data/dummy_users.dart';
+
+
+
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/screens/admin/admin_dashboard_screen.dart';
-import 'package:commission_apparel_flutter/models/store_item.dart';
+
 
 Widget createTestApp(Widget home, AuthService auth) {
   return ChangeNotifierProvider.value(
@@ -28,7 +28,7 @@ void main() {
 
   group('Phase 5C - Admin Catalog Functionality', () {
     testWidgets('Admin can create a collection', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password');
+      auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -49,7 +49,7 @@ void main() {
     });
     
     testWidgets('Admin can create a design', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password');
+      auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 

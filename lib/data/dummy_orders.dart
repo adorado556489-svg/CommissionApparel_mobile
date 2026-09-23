@@ -188,6 +188,53 @@ final List<ParentOrder> dummyParentOrders = [
     createdAt: DateTime(2024, 5, 15),
     updatedAt: DateTime(2024, 7, 20),
   ),
+
+  // Order 6: Draft Direct Order
+  ParentOrder(
+    id: 'order-6',
+    teamStoreId: null,
+    userId: 'user-coach-1',
+    athleteFirstName: 'Bulk',
+    athleteLastName: 'Order',
+    gender: 'Mens',
+    itemEntries: const [
+      OrderItemEntry(
+        storeItemId: 'design-bball-pkg', // Maps to designId
+        name: 'Basketball Player Package',
+        types: ['Jersey', 'Shorts'],
+        sizes: {'Jersey': 'L', 'Shorts': 'L'},
+        quantity: 5,
+      ),
+    ],
+    totalRetailPrice: 0.0,
+    status: 'Draft',
+    createdAt: DateTime(2024, 7, 10),
+    updatedAt: DateTime(2024, 7, 10),
+  ),
+
+  // Order 7: Submitted Direct Order Batch
+  ParentOrder(
+    id: 'order-7',
+    teamStoreId: null,
+    userId: 'user-coach-1',
+    athleteFirstName: 'Tyler',
+    athleteLastName: 'Washington',
+    gender: 'Mens',
+    itemEntries: const [
+      OrderItemEntry(
+        storeItemId: 'design-bball-jersey', // Maps to designId
+        name: 'Basketball Jersey',
+        types: ['Jersey'],
+        sizes: {'Jersey': 'M'},
+        quantity: 1,
+      ),
+    ],
+    totalRetailPrice: 0.0,
+    status: 'Submitted to Admin',
+    batchId: 'batch-direct-1',
+    createdAt: DateTime(2024, 7, 11),
+    updatedAt: DateTime(2024, 7, 11),
+  ),
 ];
 
 // ── Convenience lookups ───────────────────────────────────────────────────

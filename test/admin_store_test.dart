@@ -34,7 +34,7 @@ void main() {
 
   group('Phase 5B - Admin Store Functionality', () {
     testWidgets('Admin dashboard renders pending stores and campaign stores', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password');
+      auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -50,7 +50,7 @@ void main() {
     });
 
     testWidgets('Admin can approve a pending store', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password');
+      auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -63,7 +63,7 @@ void main() {
     });
 
     testWidgets('Admin can create a campaign store', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password');
+      auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -81,7 +81,7 @@ void main() {
     });
 
     testWidgets('Admin Store Edit Screen renders components', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password');
+      auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminStoreEditScreen(storeId: 'store-1'), auth));
       await tester.pumpAndSettle();
 
@@ -92,7 +92,7 @@ void main() {
     });
 
     testWidgets('Admin can update bulk pricing', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password');
+      auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminStoreEditScreen(storeId: 'store-1'), auth));
       await tester.pumpAndSettle();
 
@@ -113,7 +113,7 @@ void main() {
     });
 
     testWidgets('Admin can archive and unarchive a store', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password');
+      auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminStoreEditScreen(storeId: 'store-1'), auth));
       await tester.pumpAndSettle();
 

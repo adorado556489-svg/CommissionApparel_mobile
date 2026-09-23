@@ -5,6 +5,7 @@ class User {
   final String firstName;
   final String lastName;
   final String email;
+  final String password;
   final UserRole role;
   
   // Phase 3 & 5A Fields
@@ -23,6 +24,7 @@ class User {
     required this.firstName,
     required this.lastName,
     required this.email,
+    required this.password,
     required this.role,
     this.status = 'active',
     this.organization,
@@ -46,6 +48,7 @@ class User {
     String? firstName,
     String? lastName,
     String? email,
+    String? password,
     UserRole? role,
     String? status,
     String? organization,
@@ -61,6 +64,7 @@ class User {
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       email: email ?? this.email,
+      password: password ?? this.password,
       role: role ?? this.role,
       status: status ?? this.status,
       organization: organization ?? this.organization,
