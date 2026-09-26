@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "919983232242",
+    "project_id": "commissionappareldb",
+    "storage_bucket": "commissionappareldb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:919983232242:android:24ef007bddad7af7a96c6b",
+        "android_client_info": {
+          "package_name": "com.example.commission_apparel_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyOsX361xbJq0F5kPv1ppowJGlV0HRY0s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
