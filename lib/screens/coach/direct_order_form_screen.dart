@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/order_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/design_catalog.dart';
 import '../../models/parent_order.dart';
 import '../../data/dummy_catalog.dart';
@@ -84,7 +85,8 @@ class _DirectOrderFormScreenState extends State<DirectOrderFormScreen> {
       ));
     }
 
-    final error = OrderService.submitDirectOrder(
+    final error = await OrderService.submitDirectOrder(
+      context.read<FirebaseFirestore>(),
       currentUser: user,
       orderType: _orderType,
       athleteFirstName: _firstNameCtrl.text.isEmpty ? null : _firstNameCtrl.text,
@@ -338,3 +340,4 @@ class _DesignSelection {
     this.qty = 1,
   }) : sizes = {};
 }
+

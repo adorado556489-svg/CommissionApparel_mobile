@@ -13,7 +13,9 @@ import '../../models/store_item.dart';
 import '../../models/parent_order.dart';
 import '../../models/design_catalog.dart';
 import '../../data/dummy_stores.dart';
-import '../../data/dummy_orders.dart';
+import '../../services/order_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/store_service.dart';
 import '../../data/dummy_catalog.dart';
 
 class CoachDashboardScreen extends StatefulWidget {
@@ -188,7 +190,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     });
   }
 
-  void _submitMasterOrder() {
+  Future<void> _submitMasterOrder() async {
     if (_activeStore == null || _unbatchedOrders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot submit an empty roster.')),
@@ -284,8 +286,13 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
 
   Widget _buildDirectOrdersTab() {
     final user = context.watch<AuthService>().currentUser!;
-    final draftOrders = dummyParentOrders.where((o) => o.teamStoreId == null && o.userId == user.id && o.status == 'Draft').toList();
-    final batchedOrders = dummyParentOrders.where((o) => o.teamStoreId == null && o.userId == user.id && o.batchId != null && !o.isArchived).toList();
+    return FutureBuilder<List<ParentOrder>>(
+      future: OrderService.getAllOrders(context.read<FirebaseFirestore>()),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final allOrders = snapshot.data!;
+        final draftOrders = allOrders.where((o) => o.teamStoreId == null && o.userId == user.id && o.status == 'Draft').toList();
+        final batchedOrders = allOrders.where((o) => o.teamStoreId == null && o.userId == user.id && o.batchId != null && !o.isArchived).toList();
     
     // Group batched orders by batchId
     final Map<String, List<ParentOrder>> batches = {};
@@ -319,7 +326,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
             alignment: Alignment.centerRight,
             child: ElevatedButton(
               onPressed: () {
-                final error = OrderService.finalizeDirectOrders(user);
+                final error = await OrderService.finalizeDirectOrders(context.read<FirebaseFirestore>(), user);
                 if (error != null) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
                 } else {
@@ -360,7 +367,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
                         icon: const Icon(Icons.archive),
                         label: const Text('Archive Batch'),
                         onPressed: () {
-                          OrderService.archiveDirectOrderBatch(user, e.key);
+                          await OrderService.archiveDirectOrderBatch(context.read<FirebaseFirestore>(), user, e.key);
                           setState(() {});
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Batch has been archived successfully.'))
@@ -374,6 +381,9 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
             );
           }),
       ],
+    );
+  }
+      }
     );
   }
 

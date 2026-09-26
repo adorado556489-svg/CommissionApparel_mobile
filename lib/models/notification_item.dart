@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// In-app notification model.
 ///
 /// Represents notifications displayed to users (order updates, store
@@ -24,6 +26,32 @@ class NotificationItem {
     required this.createdAt,
   });
 
+  factory NotificationItem.fromFirestore(DocumentSnapshot doc) {
+    final docData = doc.data() as Map<String, dynamic>? ?? {};
+    return NotificationItem(
+      id: doc.id,
+      userId: docData['userId'] ?? '',
+      type: docData['type'] ?? '',
+      title: docData['title'] ?? '',
+      message: docData['message'] ?? '',
+      readAt: (docData['readAt'] as Timestamp?)?.toDate(),
+      data: Map<String, dynamic>.from(docData['data'] ?? {}),
+      createdAt: (docData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'userId': userId,
+      'type': type,
+      'title': title,
+      'message': message,
+      'readAt': readAt != null ? Timestamp.fromDate(readAt!) : null,
+      'data': data,
+      'createdAt': Timestamp.fromDate(createdAt),
+    };
+  }
+
   /// Whether this notification has been read.
   bool get isRead => readAt != null;
   bool get isUnread => readAt == null;
@@ -42,7 +70,7 @@ class NotificationItem {
     );
   }
 
-  // ── Common notification types ───────────────────────────────────────────
+  // Common notification types
   static const String typeStoreApproved = 'store_approved';
   static const String typeStoreDeclined = 'store_declined';
   static const String typeOrderPlaced = 'order_placed';

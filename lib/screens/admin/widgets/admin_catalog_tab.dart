@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../services/catalog_service.dart';
+import '../../../models/design_collection.dart';
 import '../../../app/theme.dart';
 import '../../../models/design_catalog.dart';
 import '../../../data/dummy_catalog.dart';
@@ -25,26 +29,36 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
   final List<String> _selectedTypes = [];
   bool _hasNameField = false;
   bool _hasNumberField = false;
-  List<String> _imagePaths = [];
-  
-  final List<String> _availableTypes = [
-    'Jersey', 'Shorts', 'Hoodie', 'Pants', 'T-Shirt', 'Warmup Top', 'Warmup Bottom', 'Accessory', 'Backpack'
-  ];
 
-  void _loadData() {
-    setState(() {
-      dummyDesignCatalog.sort((a, b) {
-        if (a.sortOrder != b.sortOrder) return b.sortOrder.compareTo(a.sortOrder);
-        return b.createdAt.compareTo(a.createdAt);
-      });
-    });
-  }
+  List<DesignCatalog> _catalogItems = [];
+  List<DesignCollection> _collections = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadData();
   }
+
+  Future<void> _loadData() async {
+    final firestore = context.read<FirebaseFirestore>();
+    final items = await CatalogService.getAllDesignCatalog(firestore);
+    final cols = await CatalogService.getAllDesignCollections(firestore);
+    if (mounted) {
+      setState(() {
+        _catalogItems = items;
+        _collections = cols;
+        _isLoading = false;
+      });
+    }
+  }
+  List<String> _imagePaths = [];
+  
+  final List<String> _availableTypes = [
+    'Jersey', 'Shorts', 'Hoodie', 'Pants', 'T-Shirt', 'Warmup Top', 'Warmup Bottom', 'Accessory', 'Backpack'
+  ];
+
+
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -56,7 +70,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
     }
   }
 
-  void _createDesign() {
+  Future<void> _createDesign() async {
     if (_formKey.currentState!.validate() && _selectedTypes.isNotEmpty) {
       final newDesign = DesignCatalog(
         id: 'design-${DateTime.now().millisecondsSinceEpoch}',
@@ -73,7 +87,8 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      dummyDesignCatalog.add(newDesign);
+      await CatalogService.createDesignCatalogItem(context.read<FirebaseFirestore>(), newDesign);
+      await _loadData();
       
       _nameController.clear();
       _sportController.clear();
@@ -135,7 +150,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
                     decoration: const InputDecoration(labelText: 'Collection'),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('None (Orphaned)')),
-                      ...dummyDesignCollections.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
+                      ..._collections.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
                     ],
                     onChanged: (v) => setDialogState(() => _selectedCollectionId = v),
                   ),
@@ -234,7 +249,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               // 1. Delete associated StoreItems globally
               final deletedStoreItemIds = dummyStoreItems.where((i) => i.designCatalogId == design.id).map((i) => i.id).toList();
               dummyStoreItems.removeWhere((i) => i.designCatalogId == design.id);
@@ -247,7 +262,8 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
               }
               
               // 3. Delete design
-              dummyDesignCatalog.removeWhere((d) => d.id == design.id);
+              await CatalogService.deleteDesignCatalogItem(context.read<FirebaseFirestore>(), design.id);
+                await _loadData();
               
               Navigator.pop(ctx);
               _loadData();
@@ -335,7 +351,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
                       decoration: const InputDecoration(labelText: 'Collection'),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('None (Orphaned)')),
-                        ...dummyDesignCollections.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
+                        ..._collections.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
                       ],
                       onChanged: (v) => setState(() => _selectedCollectionId = v),
                     ),
@@ -414,8 +430,8 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
           ],
         ),
         const SizedBox(height: 16),
-        ...dummyDesignCatalog.map((design) {
-          final col = dummyDesignCollections.where((c) => c.id == design.designCollectionId).firstOrNull;
+        ..._catalogItems.map((design) {
+          final col = _collections.where((c) => c.id == design.designCollectionId).firstOrNull;
           return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: Padding(
@@ -460,3 +476,11 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
     ));
   }
 }
+
+
+
+
+
+
+
+

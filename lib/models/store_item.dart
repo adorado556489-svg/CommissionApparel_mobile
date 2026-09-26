@@ -1,12 +1,14 @@
-/// Store item model matching the Laravel `StoreItem` Eloquent model.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Store item model matching the Laravel StoreItem Eloquent model.
 ///
 /// Represents a product in a team store, linked to a design catalog entry.
-/// Coaches set retail prices (must be ≥ wholesale). Items can be packages
+/// Coaches set retail prices (must be >= wholesale). Items can be packages
 /// containing sub-component items.
 class StoreItem {
   final String id;
-  final String teamStoreId; // FK → TeamStore
-  final String? designCatalogId; // FK → DesignCatalog
+  final String teamStoreId; // FK -> TeamStore
+  final String? designCatalogId; // FK -> DesignCatalog
   final String name;
   final List<String> types; // garment types, e.g. ['Jersey', 'Shorts']
   final String? imageUrl; // legacy single image
@@ -36,19 +38,51 @@ class StoreItem {
     this.componentIds = const [],
   });
 
-  // ── Computed Properties ─────────────────────────────────────────────────
+  factory StoreItem.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return StoreItem(
+      id: doc.id,
+      teamStoreId: data['teamStoreId'] ?? '',
+      designCatalogId: data['designCatalogId'],
+      name: data['name'] ?? '',
+      types: List<String>.from(data['types'] ?? []),
+      imageUrl: data['imageUrl'],
+      imagePaths: List<String>.from(data['imagePaths'] ?? []),
+      wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble() ?? 0.0,
+      retailPrice: (data['retailPrice'] as num?)?.toDouble() ?? 0.0,
+      sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      componentIds: List<String>.from(data['componentIds'] ?? []),
+    );
+  }
 
-  /// Whether this item is a package containing multiple sub-components.
+  Map<String, dynamic> toFirestore() {
+    return {
+      'teamStoreId': teamStoreId,
+      'designCatalogId': designCatalogId,
+      'name': name,
+      'types': types,
+      'imageUrl': imageUrl,
+      'imagePaths': imagePaths,
+      'wholesalePrice': wholesalePrice,
+      'retailPrice': retailPrice,
+      'sortOrder': sortOrder,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+      'componentIds': componentIds,
+    };
+  }
+
+  // Computed Properties
+
   bool get isPackage => componentIds.isNotEmpty;
 
-  /// The primary display image (first from imagePaths, fallback to imageUrl).
   String? get displayImage =>
       imagePaths.isNotEmpty ? imagePaths.first : imageUrl;
 
-  /// Profit margin per unit (retail - wholesale).
   double get marginPerUnit => retailPrice - wholesalePrice;
 
-  /// Whether the retail price is validly set (≥ wholesale).
   bool get hasValidPricing => retailPrice >= wholesalePrice;
 
   StoreItem copyWith({

@@ -1,23 +1,26 @@
+﻿import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:commission_apparel_flutter/screens/public/parent_order_form_screen.dart';
-
 import 'package:commission_apparel_flutter/services/auth_service.dart';
-
 import 'package:commission_apparel_flutter/data/dummy_orders.dart';
-
 
 void main() {
   late AuthService authService;
+  late FakeFirebaseFirestore firestore;
 
   setUp(() {
-    authService = AuthService();
+    firestore = FakeFirebaseFirestore();
+    authService = AuthService(firestore: firestore, firebaseAuth: AutoSeedingMockFirebaseAuth());
   });
 
   Widget createFormScreen(String storeId) {
     return MultiProvider(
       providers: [
+        Provider<FirebaseFirestore>.value(value: firestore),
         ChangeNotifierProvider.value(value: authService),
       ],
       child: MaterialApp(
@@ -152,3 +155,4 @@ void main() {
     dummyParentOrders.removeLast();
   });
 }
+

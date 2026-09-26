@@ -1,4 +1,6 @@
-/// Landing collection model matching the Laravel `LandingCollection` model.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Landing collection model matching the Laravel LandingCollection model.
 ///
 /// Represents the featured sport/category tabs shown on the public landing
 /// page hero section. Admin manages these via site settings.
@@ -24,6 +26,34 @@ class LandingCollection {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  factory LandingCollection.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return LandingCollection(
+      id: doc.id,
+      tabName: data['tabName'] ?? '',
+      title: data['title'] ?? '',
+      description: data['description'],
+      imagePath: data['imagePath'],
+      sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
+      isActive: data['isActive'] ?? true,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'tabName': tabName,
+      'title': title,
+      'description': description,
+      'imagePath': imagePath,
+      'sortOrder': sortOrder,
+      'isActive': isActive,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
 
   LandingCollection copyWith({
     String? id,

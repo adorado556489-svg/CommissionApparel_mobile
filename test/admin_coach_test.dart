@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:commission_apparel_flutter/services/admin_service.dart';
 import 'package:commission_apparel_flutter/data/dummy_users.dart';
 
@@ -15,10 +16,11 @@ void main() {
       // We should ideally snapshot and restore, but we'll manually revert what we break in tearDown.
     });
 
-    test('Admin can update coach information', () {
+    test('Admin can update coach information', () async {
       final originalFirstName = coachUser.firstName;
 
-      final error = AdminService.updateCoach(
+      final error = await AdminService.updateCoach(
+        FakeFirebaseFirestore(),
         adminUser,
         coachUser,
         firstName: 'UpdatedName',
@@ -36,7 +38,8 @@ void main() {
       expect(updatedCoach.firstName, 'UpdatedName');
 
       // Revert
-      AdminService.updateCoach(
+      await AdminService.updateCoach(
+        FakeFirebaseFirestore(),
         adminUser,
         updatedCoach,
         firstName: originalFirstName,
@@ -62,7 +65,7 @@ void main() {
       AdminService.resetCoachPassword(adminUser, updatedCoach, originalPassword);
     });
 
-    test('Admin can delete coach', () {
+    test('Admin can delete coach', () async {
       // Create a temporary coach to delete so we don't break other tests that rely on dummyUsers
       final tempCoach = User(
         id: 'temp-coach',
@@ -77,7 +80,7 @@ void main() {
       );
       dummyUsers.add(tempCoach);
 
-      final error = AdminService.deleteCoach(adminUser, tempCoach.id);
+      final error = await AdminService.deleteCoach(FakeFirebaseFirestore(), adminUser, tempCoach.id);
       expect(error, isNull);
       
       final exists = dummyUsers.any((u) => u.id == tempCoach.id);
@@ -85,3 +88,5 @@ void main() {
     });
   });
 }
+
+

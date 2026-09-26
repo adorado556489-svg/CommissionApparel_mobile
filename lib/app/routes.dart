@@ -13,7 +13,7 @@ import '../screens/public/parent_order_form_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
-import '../screens/auth/reset_password_screen.dart';
+
 import '../screens/coach/coach_dashboard_screen.dart';
 import '../screens/coach/coach_order_edit_screen.dart';
 import '../screens/coach/direct_order_form_screen.dart';
@@ -40,7 +40,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
-  static const String resetPassword = '/reset-password';
+  
   static const String catalog = '/catalog';
   static const String catalogCollection = '/catalog/collection';
   static const String storeSearch = '/store/search';
@@ -139,13 +139,6 @@ class AppRoutes {
         return _buildRoute(
           settings,
           const ForgotPasswordScreen(),
-          guestOnly: true,
-        );
-
-      case resetPassword:
-        return _buildRoute(
-          settings,
-          const ResetPasswordScreen(),
           guestOnly: true,
         );
 
@@ -280,8 +273,7 @@ class AppRoutes {
         return 'Register';
       case forgotPassword:
         return 'Forgot Password';
-      case resetPassword:
-        return 'Reset Password';
+      
       case coachOrderEdit:
         return 'Edit Order';
       case adminStoreEdit:
@@ -401,6 +393,7 @@ class _PlaceholderScreen extends StatelessWidget {
     );
   }
 }
+
 
 
 

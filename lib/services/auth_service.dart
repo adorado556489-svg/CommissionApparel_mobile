@@ -1,32 +1,81 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../constants/firestore_paths.dart';
 import '../models/user.dart';
 import '../data/dummy_users.dart';
 import '../data/dummy_logs.dart';
 export '../models/user.dart' show UserRole;
 
-/// The three user roles identified in the Laravel project.
-///
-/// "Guest" is an unauthenticated state, NOT a role.
-
-class PasswordResetSession {
-  final String userId;
-  final DateTime expiresAt;
-
-  PasswordResetSession({required this.userId, required this.expiresAt});
-
-  bool get isValid => DateTime.now().isBefore(expiresAt);
-}
-
-/// In-memory authentication service using [ChangeNotifier] for state
-/// management via Provider.
-///
-/// Firebase Auth will replace this implementation later.
 class AuthService extends ChangeNotifier {
-  User? _currentUser;
-  PasswordResetSession? _resetSession;
+  fb.FirebaseAuth? _injectedAuth;
+  FirebaseFirestore? _injectedFirestore;
 
-  // "?"? Getters "?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?
+  AuthService({
+    fb.FirebaseAuth? firebaseAuth,
+    FirebaseFirestore? firestore,
+  }) {
+    _injectedAuth = firebaseAuth;
+    _injectedFirestore = firestore;
+    if (_injectedAuth != null) {
+      _injectedAuth!.authStateChanges().listen(_onAuthStateChanged);
+    } else {
+      try {
+        fb.FirebaseAuth.instance.authStateChanges().listen(_onAuthStateChanged);
+      } catch (_) {
+        // Ignored in tests if Firebase isn't initialized
+      }
+    }
+  }
+
+  fb.FirebaseAuth get _firebaseAuth =>
+      _injectedAuth ?? fb.FirebaseAuth.instance;
+
+  FirebaseFirestore get _firestore =>
+      _injectedFirestore ?? FirebaseFirestore.instance;
+
+  User? _currentUser;
+
+  Future<void> _fetchAndSetUser(fb.User firebaseUser) async {
+    try {
+      final doc = await _firestore
+          .collection(FirestorePaths.users)
+          .doc(firebaseUser.uid)
+          .get();
+      if (doc.exists) {
+        _currentUser = User.fromFirestore(doc);
+      } else {
+        // Fallback to dummy data (Phase 5 migration compatibility)
+        final index = dummyUsers.indexWhere(
+          (u) => u.email.toLowerCase() == firebaseUser.email?.toLowerCase(),
+        );
+        if (index != -1) {
+          _currentUser = dummyUsers[index];
+        } else {
+          _currentUser = null;
+        }
+      }
+    } catch (e) {
+      // Fallback for tests
+      final index = dummyUsers.indexWhere(
+        (u) => u.email.toLowerCase() == firebaseUser.email?.toLowerCase(),
+      );
+      _currentUser = index != -1 ? dummyUsers[index] : null;
+    }
+    notifyListeners();
+  }
+
+  Future<void> _onAuthStateChanged(fb.User? firebaseUser) async {
+    if (firebaseUser == null) {
+      _currentUser = null;
+      notifyListeners();
+    } else {
+      await _fetchAndSetUser(firebaseUser);
+    }
+  }
+
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   UserRole? get currentRole => _currentUser?.role;
@@ -35,9 +84,6 @@ class AuthService extends ChangeNotifier {
   bool get isCoach => _currentUser?.isCoach ?? false;
   bool get isParent => _currentUser?.isParent ?? false;
 
-  PasswordResetSession? get resetSession => _resetSession;
-
-  /// Returns the appropriate dashboard route for the current user's role.
   String get dashboardRoute {
     switch (_currentUser?.role) {
       case UserRole.admin:
@@ -50,118 +96,69 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // "?"? Auth Actions "?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?
-
-  /// Stub login: checks email and password against dummy users.
-  ///
-  /// Returns `null` on success, or an error message string on failure.
-  String? login(String email, String password) {
+  Future<String?> login(String email, String password) async {
     if (email.isEmpty || password.isEmpty) {
       return 'Email and password are required.';
     }
 
     final normalizedEmail = email.trim().toLowerCase();
 
-    final index = dummyUsers.indexWhere(
-      (u) => u.email.toLowerCase() == normalizedEmail,
-    );
-    
-    if (index == -1) {
+    // Check Firestore for declined status first
+    try {
+      final qs = await _firestore
+          .collection(FirestorePaths.users)
+          .where('email', isEqualTo: normalizedEmail)
+          .limit(1)
+          .get();
+      
+      if (qs.docs.isNotEmpty) {
+        final userDoc = User.fromFirestore(qs.docs.first);
+        if (userDoc.status == 'declined') {
+          return 'Your account has been declined. Please contact support.';
+        }
+      } else {
+        // Fallback to dummy users
+        final index = dummyUsers.indexWhere(
+          (u) => u.email.toLowerCase() == normalizedEmail,
+        );
+        if (index == -1) {
+          return 'Invalid email or password.';
+        }
+        if (dummyUsers[index].status == 'declined') {
+          return 'Your account has been declined. Please contact support.';
+        }
+      }
+    } catch (e) {
+      // Fallback
+      final index = dummyUsers.indexWhere(
+        (u) => u.email.toLowerCase() == normalizedEmail,
+      );
+      if (index == -1) return 'Invalid email or password.';
+      if (dummyUsers[index].status == 'declined') {
+        return 'Your account has been declined. Please contact support.';
+      }
+    }
+
+    try {
+      final cred = await _firebaseAuth.signInWithEmailAndPassword(
+        email: normalizedEmail,
+        password: password,
+      );
+      await _fetchAndSetUser(cred.user!);
+      return null;
+    } on fb.FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        return 'Invalid email or password.';
+      }
+      return e.message ?? 'Login failed.';
+    } catch (e) {
       return 'Invalid email or password.';
     }
-
-    final user = dummyUsers[index];
-
-    // Enforce password check added in Phase 7B
-    if (user.password != password) {
-      return 'Invalid email or password.';
-    }
-
-    // Coaches can be declined by admin ?" block login
-    if (user.status == 'declined') {
-      return 'Your account has been declined. Please contact support.';
-    }
-
-    _currentUser = user;
-    notifyListeners();
-    return null; // success
   }
 
-  /// Verifies identity matching Laravel's exact rule:
-  /// Email, Phone, Organization must strictly match (trim/lowercase).
-  /// Sets a 15-minute reset session in-memory on success.
-  String? verifyResetIdentity(String email, String phone, String organization) {
-    if (email.trim().isEmpty || phone.trim().isEmpty || organization.trim().isEmpty) {
-      return 'The provided identity details do not match our records.';
-    }
-
-    final normalizedEmail = email.trim().toLowerCase();
-    final normalizedPhone = phone.trim().toLowerCase();
-    final normalizedOrg = organization.trim().toLowerCase();
-
-    final userIndex = dummyUsers.indexWhere((u) => u.email.toLowerCase() == normalizedEmail);
-
-    if (userIndex == -1) {
-      return 'The provided identity details do not match our records.';
-    }
-    final user = dummyUsers[userIndex];
-
-    if ((user.phone?.trim().toLowerCase() ?? '') != normalizedPhone || 
-        (user.organization?.trim().toLowerCase() ?? '') != normalizedOrg) {
-      // Laravel exact generic error message:
-      return 'The provided identity details do not match our records.';
-    }
-
-    // Create 15-minute session
-    _resetSession = PasswordResetSession(
-      userId: user.id, 
-      expiresAt: DateTime.now().add(const Duration(minutes: 15))
-    );
-    notifyListeners();
-    return null;
-  }
-
-  /// Updates the user's password using the active reset session.
-  String? resetPassword(String password) {
-    if (_resetSession == null || !_resetSession!.isValid) {
-      _resetSession = null;
-      return 'Your password reset session has expired or is invalid. Please verify your identity again.';
-    }
-
-    final userIndex = dummyUsers.indexWhere((u) => u.id == _resetSession!.userId);
-    if (userIndex == -1) {
-      _resetSession = null;
-      return 'User not found.';
-    }
-
-    final user = dummyUsers[userIndex];
-    dummyUsers[userIndex] = user.copyWith(password: password);
-
-    // Simulate PasswordResetLog
-    dummyPasswordResetLogs.add({
-      'user_id': user.id,
-      'ip_address': '127.0.0.1', // mock IP
-      'user_agent': 'Flutter App',
-      'created_at': DateTime.now(),
-    });
-
-    // Clear session on success
-    _resetSession = null;
-    notifyListeners();
-    return null;
-  }
-
-  /// Force clear reset session for testing
-  void clearResetSession() {
-    _resetSession = null;
-    notifyListeners();
-  }
-
-  /// Stub register: creates a new coach account (matching Laravel behavior
-  /// where registration creates coach-role users).
-  ///
-  /// Returns `null` on success, or an error message string on failure.
-  String? register({
+  Future<String?> register({
     required String firstName,
     required String lastName,
     required String email,
@@ -169,51 +166,158 @@ class AuthService extends ChangeNotifier {
     String? organization,
     String? phone,
     String? sport,
-  }) {
+  }) async {
     final normalizedEmail = email.trim().toLowerCase();
 
-    // Check for existing email
-    final exists = dummyUsers.any(
-      (u) => u.email.toLowerCase() == normalizedEmail,
-    );
-    if (exists) {
-      return 'An account with this email already exists.';
+    try {
+      // Check Firestore
+      final qs = await _firestore
+          .collection(FirestorePaths.users)
+          .where('email', isEqualTo: normalizedEmail)
+          .limit(1)
+          .get();
+      if (qs.docs.isNotEmpty) {
+        return 'An account with this email already exists.';
+      }
+
+      // Check Dummy
+      final existsInDummy = dummyUsers.any((u) => u.email.toLowerCase() == normalizedEmail);
+      if (existsInDummy) { 
+        return 'An account with this email already exists.'; 
+      }
+
+      final cred = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: normalizedEmail,
+        password: password,
+      );
+
+      final uid = cred.user!.uid;
+
+      final newUser = User(
+        id: uid,
+        firstName: firstName,
+        lastName: lastName,
+        email: normalizedEmail,
+        password: password, // not stored
+        role: UserRole.coach,
+        organization: organization,
+        phone: phone,
+        sport: sport,
+        status: 'active',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Write to Firestore
+      await _firestore
+          .collection(FirestorePaths.users)
+          .doc(uid)
+          .set(newUser.toFirestore());
+
+      // Fallback for current memory
+      dummyUsers.add(newUser);
+
+      await _fetchAndSetUser(cred.user!);
+
+      return null;
+    } on fb.FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        return 'An account with this email already exists.';
+      }
+      return e.message ?? 'Registration failed.';
+    } catch (e) {
+      return e.toString();
     }
-
-    final newUser = User(
-      id: 'user-coach-${DateTime.now().millisecondsSinceEpoch}',
-      firstName: firstName,
-      lastName: lastName,
-      email: normalizedEmail,
-      password: password,
-      role: UserRole.coach,
-      organization: organization,
-      phone: phone,
-      sport: sport,
-      status: 'active', // Laravel auto-approves coach registration initially
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-
-    dummyUsers.add(newUser);
-    _currentUser = newUser;
-    notifyListeners();
-    return null; // success
   }
 
-  /// Clears the current user session.
-  String? updateProfileLogo(String logoPath) {
-    if (_currentUser == null) return 'Unauthenticated';
-    final index = dummyUsers.indexWhere((u) => u.id == _currentUser!.id);
-    if (index != -1) {
-      dummyUsers[index] = dummyUsers[index].copyWith(logoPath: logoPath);
-      _currentUser = dummyUsers[index];
-      notifyListeners();
+  Future<String?> sendPasswordReset(
+    String email,
+    String phone,
+    String organization,
+  ) async {
+    if (email.trim().isEmpty ||
+        phone.trim().isEmpty ||
+        organization.trim().isEmpty) {
+      return 'The provided identity details do not match our records.';
     }
+
+    final normalizedEmail = email.trim().toLowerCase();
+    final normalizedPhone = phone.trim().toLowerCase();
+    final normalizedOrg = organization.trim().toLowerCase();
+
+    User? matchedUser;
+
+    try {
+      final qs = await _firestore
+          .collection(FirestorePaths.users)
+          .where('email', isEqualTo: normalizedEmail)
+          .limit(1)
+          .get();
+      
+      if (qs.docs.isNotEmpty) {
+        matchedUser = User.fromFirestore(qs.docs.first);
+      }
+    } catch (_) {}
+
+    if (matchedUser == null) {
+      final userIndex = dummyUsers.indexWhere(
+        (u) => u.email.toLowerCase() == normalizedEmail,
+      );
+      if (userIndex != -1) {
+        matchedUser = dummyUsers[userIndex];
+      }
+    }
+
+    if (matchedUser == null) {
+      return 'The provided identity details do not match our records.';
+    }
+
+    if ((matchedUser.phone?.trim().toLowerCase() ?? '') != normalizedPhone ||
+        (matchedUser.organization?.trim().toLowerCase() ?? '') != normalizedOrg) {
+      return 'The provided identity details do not match our records.';
+    }
+
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: normalizedEmail);
+
+      dummyPasswordResetLogs.add({
+        'user_id': matchedUser.id,
+        'ip_address': '127.0.0.1',
+        'user_agent': 'Flutter App (Firebase)',
+        'created_at': DateTime.now(),
+      });
+
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  Future<String?> updateProfileLogo(String logoPath) async {
+    if (_currentUser == null) return 'Unauthenticated';
+
+    try {
+      final updatedUser = _currentUser!.copyWith(logoPath: logoPath);
+      await _firestore
+          .collection(FirestorePaths.users)
+          .doc(_currentUser!.id)
+          .update({'logoPath': logoPath});
+      _currentUser = updatedUser;
+    } catch (e) {
+      // Fallback
+      final index = dummyUsers.indexWhere((u) => u.id == _currentUser!.id);
+      if (index != -1) {
+        dummyUsers[index] = dummyUsers[index].copyWith(logoPath: logoPath);
+        _currentUser = dummyUsers[index];
+      }
+    }
+    
+    notifyListeners();
     return null;
   }
 
-  void logout() {
+  Future<void> logout() async {
+    await _firebaseAuth.signOut();
     _currentUser = null;
     notifyListeners();
   }

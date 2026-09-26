@@ -9,13 +9,14 @@ import '../data/dummy_stores.dart';
 import '../data/dummy_orders.dart';
 import '../data/dummy_content.dart';
 import '../data/dummy_quotes.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class AdminService {
   
   // --- COACH MANAGEMENT ---
 
-  static String? updateCoach(User admin, User coach, {
+  static Future<String?> updateCoach(FirebaseFirestore firestore, User admin, User coach, {
     required String firstName,
     required String lastName,
     required String email,
@@ -23,27 +24,53 @@ class AdminService {
     required String phone,
     required String sport,
     required String status,
-  }) {
+  }) async {
     if (admin.role != UserRole.admin) return 'Unauthorized';
     
-    final index = dummyUsers.indexWhere((u) => u.id == coach.id);
-    if (index == -1) return 'Coach not found';
-
-    // check email uniqueness
-    if (dummyUsers.any((u) => u.email == email && u.id != coach.id)) {
-      return 'Email already in use.';
+    // Check email uniqueness in Firestore if possible
+    try {
+      final qs = await firestore.collection('users').where('email', isEqualTo: email).get();
+      if (qs.docs.isNotEmpty && qs.docs.first.id != coach.id) {
+        return 'Email already in use.';
+      }
+      
+      final doc = await firestore.collection('users').doc(coach.id).get();
+      if (doc.exists) {
+        await firestore.collection('users').doc(coach.id).update({
+          'firstName': firstName,
+          'lastName': lastName,
+          'email': email,
+          'organization': organization,
+          'phone': phone,
+          'sport': sport,
+          'status': status,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'not-found' && e.code != 'unimplemented') {
+        print('CRITICAL FIRESTORE ERROR [AdminService.updateCoach]: ${e.message}');
+        throw e;
+      }
     }
 
-    dummyUsers[index] = dummyUsers[index].copyWith(
-      firstName: firstName,
-      lastName: lastName,
-      email: email,
-      organization: organization,
-      phone: phone,
-      sport: sport,
-      status: status,
-      updatedAt: DateTime.now(),
-    );
+    // Dummy fallback logic
+    final index = dummyUsers.indexWhere((u) => u.id == coach.id);
+    if (index != -1) {
+      if (dummyUsers.any((u) => u.email == email && u.id != coach.id)) {
+        return 'Email already in use.';
+      }
+      dummyUsers[index] = dummyUsers[index].copyWith(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        organization: organization,
+        phone: phone,
+        sport: sport,
+        status: status,
+        updatedAt: DateTime.now(),
+      );
+    }
     return null;
   }
 
@@ -61,7 +88,7 @@ class AdminService {
     return null;
   }
 
-  static String? deleteCoach(User admin, String coachId) {
+  static Future<String?> deleteCoach(FirebaseFirestore firestore, User admin, String coachId) async {
     if (admin.role != UserRole.admin) return 'Unauthorized';
     
     final index = dummyUsers.indexWhere((u) => u.id == coachId);
@@ -69,6 +96,26 @@ class AdminService {
 
     final coachStoreIds = dummyTeamStores.where((s) => s.userId == coachId).map((s) => s.id).toSet();
 
+    try {
+      final batch = firestore.batch();
+      final directOrders = await firestore.collection('parentOrders').where('userId', isEqualTo: coachId).where('teamStoreId', isNull: true).get();
+      for (var doc in directOrders.docs) { batch.delete(doc.reference); }
+      
+      final stores = await firestore.collection('teamStores').where('userId', isEqualTo: coachId).get();
+      for (var storeDoc in stores.docs) {
+        final storeOrders = await firestore.collection('parentOrders').where('teamStoreId', isEqualTo: storeDoc.id).get();
+        for (var doc in storeOrders.docs) { batch.delete(doc.reference); }
+        batch.delete(storeDoc.reference);
+      }
+      batch.delete(firestore.collection('users').doc(coachId));
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      if (e.code != 'not-found' && e.code != 'unimplemented') {
+        print('CRITICAL FIRESTORE ERROR [AdminService]: ${e.message}');
+        throw e;
+      }
+    }
+    
     dummyParentOrders.removeWhere((o) => o.teamStoreId != null && coachStoreIds.contains(o.teamStoreId));
     dummyParentOrders.removeWhere((o) => o.teamStoreId == null && o.userId == coachId);
     dummyTeamStores.removeWhere((s) => s.userId == coachId);
@@ -79,8 +126,26 @@ class AdminService {
 
   // --- BATCH MANAGEMENT ---
 
-  static String? markDirectBatchAddressed(User admin, String batchId) {
+  static Future<String?> markDirectBatchAddressed(FirebaseFirestore firestore, User admin, String batchId) async {
     if (admin.role != UserRole.admin) return 'Unauthorized';
+    
+    try {
+      final qs = await firestore.collection('parentOrders').where('batchId', isEqualTo: batchId).get();
+      if (qs.docs.isNotEmpty) {
+        final batch = firestore.batch();
+        for (var doc in qs.docs) {
+          if (doc.data()['teamStoreId'] == null) {
+            batch.update(doc.reference, {'status': 'Processing', 'isArchived': true});
+          }
+        }
+        await batch.commit();
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'not-found' && e.code != 'unimplemented') {
+        print('CRITICAL FIRESTORE ERROR [AdminService]: ${e.message}');
+        throw e;
+      }
+    }
     
     var found = false;
     for (var i = 0; i < dummyParentOrders.length; i++) {
@@ -93,8 +158,26 @@ class AdminService {
     return found ? null : 'Batch not found.';
   }
 
-  static String? markStoreBatchAddressed(User admin, String batchId) {
+  static Future<String?> markStoreBatchAddressed(FirebaseFirestore firestore, User admin, String batchId) async {
     if (admin.role != UserRole.admin) return 'Unauthorized';
+    
+    try {
+      final qs = await firestore.collection('parentOrders').where('batchId', isEqualTo: batchId).get();
+      if (qs.docs.isNotEmpty) {
+        final batch = firestore.batch();
+        for (var doc in qs.docs) {
+          if (doc.data()['teamStoreId'] != null) {
+            batch.update(doc.reference, {'status': 'Processing', 'isArchived': true});
+          }
+        }
+        await batch.commit();
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'not-found' && e.code != 'unimplemented') {
+        print('CRITICAL FIRESTORE ERROR [AdminService]: ${e.message}');
+        throw e;
+      }
+    }
     
     var found = false;
     for (var i = 0; i < dummyParentOrders.length; i++) {
@@ -107,8 +190,24 @@ class AdminService {
     return found ? null : 'Batch not found.';
   }
 
-  static String? deleteArchivedOrderBatch(User admin, String batchId) {
+  static Future<String?> deleteArchivedOrderBatch(FirebaseFirestore firestore, User admin, String batchId) async {
     if (admin.role != UserRole.admin) return 'Unauthorized';
+    
+    try {
+      final qs = await firestore.collection('parentOrders').where('batchId', isEqualTo: batchId).where('isArchived', isEqualTo: true).get();
+      if (qs.docs.isNotEmpty) {
+        final batch = firestore.batch();
+        for (var doc in qs.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'not-found' && e.code != 'unimplemented') {
+        print('CRITICAL FIRESTORE ERROR [AdminService]: ${e.message}');
+        throw e;
+      }
+    }
     
     final initialLength = dummyParentOrders.length;
     dummyParentOrders.removeWhere((o) => o.batchId == batchId && o.isArchived);
@@ -262,5 +361,11 @@ class AdminService {
     return null;
   }
 }
+
+
+
+
+
+
 
 

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../app/theme.dart';
 import '../../../models/design_collection.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../../../data/dummy_catalog.dart';
+import '../../../services/catalog_service.dart';
 
 class AdminCollectionsTab extends StatefulWidget {
   const AdminCollectionsTab({super.key});
@@ -14,11 +17,19 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _sortOrderController = TextEditingController();
+  List<DesignCollection> _collections = [];
+  bool _isLoading = true;
 
-  void _loadData() {
-    setState(() {
-      dummyDesignCollections.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    });
+  Future<void> _loadData() async {
+    final firestore = context.read<FirebaseFirestore>();
+    final cols = await CatalogService.getAllDesignCollections(firestore);
+    if (mounted) {
+      setState(() {
+        cols.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+        _collections = cols;
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -27,7 +38,7 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
     _loadData();
   }
 
-  void _createCollection() {
+  Future<void> _createCollection() async {
     if (_formKey.currentState!.validate()) {
       final newCol = DesignCollection(
         id: 'col-${DateTime.now().millisecondsSinceEpoch}',
@@ -36,7 +47,8 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      dummyDesignCollections.add(newCol);
+      await CatalogService.createDesignCollection(context.read<FirebaseFirestore>(), newCol);
+        await _loadData();
       
       _nameController.clear();
       _sortOrderController.clear();
@@ -77,21 +89,23 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               if (_formKey.currentState!.validate()) {
-                final index = dummyDesignCollections.indexWhere((c) => c.id == col.id);
-                if (index != -1) {
-                  dummyDesignCollections[index] = dummyDesignCollections[index].copyWith(
-                    name: _nameController.text,
-                    sortOrder: int.tryParse(_sortOrderController.text) ?? 0,
-                  );
+                final updated = col.copyWith(
+                  name: _nameController.text,
+                  sortOrder: int.tryParse(_sortOrderController.text) ?? 0,
+                );
+                await CatalogService.updateDesignCollection(context.read<FirebaseFirestore>(), updated);
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  _nameController.clear();
+                  _sortOrderController.clear();
                 }
-                Navigator.pop(ctx);
-                _nameController.clear();
-                _sortOrderController.clear();
-                _loadData();
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Collection updated.')));
+                await _loadData();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Collection updated.')));
+                }
               }
             },
             child: const Text('SAVE'),
@@ -110,18 +124,17 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               // 1. Orphan designs
-              for (int i = 0; i < dummyDesignCatalog.length; i++) {
-                if (dummyDesignCatalog[i].designCollectionId == col.id) {
-                  dummyDesignCatalog[i] = dummyDesignCatalog[i].copyWith(
-                    designCollectionId: null,
-                    clearCollectionId: true,
-                  );
+              final allCatalog = await CatalogService.getAllDesignCatalog(context.read<FirebaseFirestore>());
+              for (var design in allCatalog) {
+                if (design.designCollectionId == col.id) {
+                  final updated = design.copyWith(designCollectionId: null, clearCollectionId: true);
+                  await CatalogService.updateDesignCatalogItem(context.read<FirebaseFirestore>(), updated);
                 }
               }
               // 2. Delete collection
-              dummyDesignCollections.removeWhere((c) => c.id == col.id);
+              await CatalogService.deleteDesignCollection(context.read<FirebaseFirestore>(), col.id);
               Navigator.pop(ctx);
               _loadData();
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -138,6 +151,7 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
     return SingleChildScrollView(child: Column(
       children: [
         ExpansionTile(
@@ -177,7 +191,7 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
           ],
         ),
         const SizedBox(height: 16),
-        ...dummyDesignCollections.map((col) => Card(
+        ..._collections.map((col) => Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             title: Text(col.name, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -195,3 +209,7 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
     ));
   }
 }
+
+
+
+

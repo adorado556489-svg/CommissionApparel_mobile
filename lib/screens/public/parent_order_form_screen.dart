@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
@@ -6,6 +6,8 @@ import '../../widgets/app_scaffold.dart';
 import '../../data/dummy_stores.dart';
 import '../../data/dummy_orders.dart';
 import '../../models/store_item.dart';
+import '../../services/order_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/parent_order.dart';
 import '../../models/design_catalog.dart';
 import '../../services/auth_service.dart';
@@ -64,7 +66,7 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
     super.dispose();
   }
 
-  void _submitOrder() {
+  Future<void> _submitOrder() async {
     if (!_formKey.currentState!.validate()) return;
     
     if (_gender == null) {
@@ -141,7 +143,7 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
       updatedAt: DateTime.now(),
     );
 
-    dummyParentOrders.add(newOrder);
+    await OrderService.createOrder(context.read<FirebaseFirestore>(), newOrder);
 
     showDialog(
       context: context,
@@ -455,3 +457,5 @@ class _OrderItemState {
     return true;
   }
 }
+
+

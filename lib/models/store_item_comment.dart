@@ -1,8 +1,10 @@
-/// Comment on a store item, used for coach↔admin communication.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Comment on a store item, used for coach<->admin communication.
 class StoreItemComment {
   final String id;
-  final String storeItemId; // FK → StoreItem
-  final String? userId; // FK → User (nullable for system comments)
+  final String storeItemId; // FK -> StoreItem
+  final String? userId; // FK -> User (nullable for system comments)
   final String? userName; // denormalized for display
   final String comment;
   final DateTime createdAt;
@@ -15,6 +17,28 @@ class StoreItemComment {
     required this.comment,
     required this.createdAt,
   });
+
+  factory StoreItemComment.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return StoreItemComment(
+      id: doc.id,
+      storeItemId: data['storeItemId'] ?? '',
+      userId: data['userId'],
+      userName: data['userName'],
+      comment: data['comment'] ?? '',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'storeItemId': storeItemId,
+      'userId': userId,
+      'userName': userName,
+      'comment': comment,
+      'createdAt': Timestamp.fromDate(createdAt),
+    };
+  }
 
   StoreItemComment copyWith({
     String? id,

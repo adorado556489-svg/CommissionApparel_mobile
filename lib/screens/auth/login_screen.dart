@@ -31,13 +31,13 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     setState(() => _errorMessage = null);
 
     if (!_formKey.currentState!.validate()) return;
 
     final auth = context.read<AuthService>();
-    final error = auth.login(
+    final error = await auth.login(
       _emailController.text,
       _passwordController.text,
     );
@@ -208,3 +208,5 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
+

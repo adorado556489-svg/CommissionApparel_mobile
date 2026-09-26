@@ -1,5 +1,8 @@
-
+﻿
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/auto_seeding_mock_auth.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/services/order_service.dart';
@@ -11,7 +14,7 @@ void main() {
     late AuthService authService;
 
     setUp(() {
-      authService = AuthService();
+      authService = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
     });
 
     tearDown(() {
@@ -27,7 +30,7 @@ void main() {
     });
 
     testWidgets('Coach can edit a store-linked order they own', (tester) async {
-      authService.login('coach@example.com', 'password123');
+      await authService.login('coach@example.com', 'password123');
       final coach = authService.currentUser!;
 
       var order4 = dummyParentOrders.firstWhere((o) => o.id == 'order-4');
@@ -36,7 +39,7 @@ void main() {
         athleteFirstName: 'TylerEdited',
       );
 
-      final error = OrderService.updateOrder(coach, updatedOrder);
+      final error = await OrderService.updateOrder(FakeFirebaseFirestore(), coach, updatedOrder);
       expect(error, isNull);
 
       final reFetched = dummyParentOrders.firstWhere((o) => o.id == 'order-4');
@@ -56,13 +59,13 @@ void main() {
     });
 
     testWidgets('Coach can delete a direct order they own', (tester) async {
-      authService.login('coach@example.com', 'password123');
+      await authService.login('coach@example.com', 'password123');
       final coach = authService.currentUser!;
       
       final lengthBefore = dummyParentOrders.length;
       
       // Let's create a temporary direct order to delete
-      OrderService.submitDirectOrder(
+      await OrderService.submitDirectOrder(FakeFirebaseFirestore(), 
         currentUser: coach,
         orderType: 'person',
         athleteFirstName: 'Temp',
@@ -81,7 +84,7 @@ void main() {
       final tempOrder = dummyParentOrders.last;
       expect(tempOrder.athleteFirstName, 'Temp');
       
-      final error = OrderService.deleteOrder(coach, tempOrder.id);
+      final error = await OrderService.deleteOrder(FakeFirebaseFirestore(), coach, tempOrder.id);
       expect(error, isNull);
       
       final index = dummyParentOrders.indexWhere((o) => o.id == tempOrder.id);
@@ -92,3 +95,4 @@ void main() {
     });
   });
 }
+

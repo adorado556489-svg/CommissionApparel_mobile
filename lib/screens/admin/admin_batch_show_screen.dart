@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../services/admin_service.dart';
 import '../../models/parent_order.dart';
@@ -35,13 +36,13 @@ class _AdminBatchShowScreenState extends State<AdminBatchShowScreen> {
     }
   }
 
-  void _markAddressed() {
+  Future<void> _markAddressed() async {
     final admin = context.read<AuthService>().currentUser!;
     String? error;
     if (_isDirect) {
-      error = AdminService.markDirectBatchAddressed(admin, widget.batchId);
+      error = await AdminService.markDirectBatchAddressed(context.read<FirebaseFirestore>(), admin, widget.batchId);
     } else {
-      error = AdminService.markStoreBatchAddressed(admin, widget.batchId);
+      error = await AdminService.markStoreBatchAddressed(context.read<FirebaseFirestore>(), admin, widget.batchId);
     }
 
     if (error != null) {
@@ -54,9 +55,9 @@ class _AdminBatchShowScreenState extends State<AdminBatchShowScreen> {
     }
   }
 
-  void _deleteBatch() {
+  Future<void> _deleteBatch() async {
     final admin = context.read<AuthService>().currentUser!;
-    final error = AdminService.deleteArchivedOrderBatch(admin, widget.batchId);
+    final error = await AdminService.deleteArchivedOrderBatch(context.read<FirebaseFirestore>(), admin, widget.batchId);
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
@@ -147,3 +148,5 @@ class _AdminBatchShowScreenState extends State<AdminBatchShowScreen> {
     );
   }
 }
+
+

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/admin_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/user.dart';
 import '../../data/dummy_users.dart';
 import '../../widgets/app_scaffold.dart';
@@ -38,9 +39,14 @@ class _AdminCoachEditScreenState extends State<AdminCoachEditScreen> {
     });
   }
 
-  void _loadCoach() {
+  Future<void> _loadCoach() async {
     try {
-      _coach = dummyUsers.firstWhere((u) => u.id == widget.coachId && u.role == UserRole.coach);
+      final doc = await context.read<FirebaseFirestore>().collection('users').doc(widget.coachId).get();
+      if (doc.exists) {
+        _coach = User.fromFirestore(doc);
+      } else {
+        _coach = dummyUsers.firstWhere((u) => u.id == widget.coachId && u.role == UserRole.coach);
+      }
       _firstNameCtrl.text = _coach.firstName;
       _lastNameCtrl.text = _coach.lastName;
       _emailCtrl.text = _coach.email;
@@ -49,10 +55,12 @@ class _AdminCoachEditScreenState extends State<AdminCoachEditScreen> {
       _sportCtrl.text = _coach.sport ?? '';
       _status = _coach.status;
 
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Coach not found')));
-      Navigator.of(context).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Coach not found')));
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -68,11 +76,13 @@ class _AdminCoachEditScreenState extends State<AdminCoachEditScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     
     final admin = context.read<AuthService>().currentUser!;
-    final error = AdminService.updateCoach(
+    final firestore = context.read<FirebaseFirestore>();
+    final error = await AdminService.updateCoach(
+      firestore,
       admin,
       _coach,
       firstName: _firstNameCtrl.text,
@@ -83,6 +93,8 @@ class _AdminCoachEditScreenState extends State<AdminCoachEditScreen> {
       sport: _sportCtrl.text,
       status: _status,
     );
+
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
@@ -107,10 +119,10 @@ class _AdminCoachEditScreenState extends State<AdminCoachEditScreen> {
     }
   }
 
-  void _deleteCoach() {
+  Future<void> _deleteCoach() async {
     final admin = context.read<AuthService>().currentUser!;
     final name = '${_coach.firstName} ${_coach.lastName}';
-    final error = AdminService.deleteCoach(admin, _coach.id);
+    final error = await AdminService.deleteCoach(context.read<FirebaseFirestore>(), admin, _coach.id);
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
@@ -225,3 +237,4 @@ class _AdminCoachEditScreenState extends State<AdminCoachEditScreen> {
     );
   }
 }
+

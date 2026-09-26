@@ -36,21 +36,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
 
     final authService = context.read<AuthService>();
-    final error = authService.verifyResetIdentity(
+    final error = await authService.sendPasswordReset(
       _emailController.text,
       _phoneController.text,
       _organizationController.text,
     );
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (error != null) {
       setState(() => _errorMessage = error);
     } else {
-      // Identity verified, navigate to reset screen
-      if (mounted) {
-        Navigator.of(context).pushNamed('/reset-password');
-      }
+      // Identity verified and email sent!
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset email sent! Please check your inbox.')),
+      );
+      Navigator.of(context).pop();
     }
   }
 
@@ -59,43 +61,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Verify Identity')),
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Form(
               key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: ListView(
+                shrinkWrap: true,
                 children: [
-                  Text(
-                    'Forgot Password',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Please verify your identity to reset your password.',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
                   if (_errorMessage != null)
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        border: Border.all(color: Colors.red.shade200),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      color: Colors.red.shade100,
+                      margin: const EdgeInsets.only(bottom: 16),
                       child: Text(
                         _errorMessage!,
-                        style: TextStyle(color: Colors.red.shade800),
-                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.red.shade900),
                       ),
                     ),
-                  const SizedBox(height: 16),
+                  const Text(
+                    'To reset your password, please verify your identity based on your organizational details.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
                   TextFormField(
                     controller: _emailController,
                     decoration: const InputDecoration(
@@ -105,7 +94,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) return 'Email is required';
-                      if (!value.contains('@')) return 'Enter a valid email address';
                       return null;
                     },
                   ),
@@ -118,7 +106,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     keyboardType: TextInputType.phone,
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) return 'Phone number is required';
+                      if (value == null || value.trim().isEmpty) return 'Phone is required';
                       return null;
                     },
                   ),

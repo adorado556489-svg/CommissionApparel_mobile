@@ -3,12 +3,40 @@ import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../data/dummy_content.dart';
 import '../../models/site_setting.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/landing_collection.dart';
+import '../../services/catalog_service.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/glass_panel.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<LandingCollection> _collections = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCollections();
+  }
+
+  Future<void> _loadCollections() async {
+    final firestore = context.read<FirebaseFirestore>();
+    final collections = await CatalogService.getAllLandingCollections(firestore);
+    if (mounted) {
+      setState(() {
+        _collections = collections;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -137,10 +165,10 @@ class HomeScreen extends StatelessWidget {
             height: 180,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: dummyLandingCollections.length,
+              itemCount: _collections.length,
               separatorBuilder: (context, index) => const SizedBox(width: 16),
               itemBuilder: (context, index) {
-                final collection = dummyLandingCollections[index];
+                final collection = _collections[index];
                 return _buildCollectionCard(context, collection);
               },
             ),
@@ -299,3 +327,4 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
+

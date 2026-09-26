@@ -1,4 +1,6 @@
-/// Quote request model matching the Laravel `QuoteRequest` Eloquent model.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Quote request model matching the Laravel QuoteRequest Eloquent model.
 ///
 /// Submitted by visitors on the public landing page. Admin reviews and
 /// responds to quote requests.
@@ -36,6 +38,46 @@ class QuoteRequest {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  factory QuoteRequest.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return QuoteRequest(
+      id: doc.id,
+      firstName: data['firstName'] ?? '',
+      lastName: data['lastName'] ?? '',
+      positionTitle: data['positionTitle'],
+      email: data['email'] ?? '',
+      phone: data['phone'],
+      organizationName: data['organizationName'] ?? '',
+      apparelCategory: data['apparelCategory'],
+      estimatedQuantity: data['estimatedQuantity'],
+      packageType: data['packageType'],
+      targetDeliveryDate: (data['targetDeliveryDate'] as Timestamp?)?.toDate(),
+      designVision: data['designVision'],
+      status: data['status'] ?? 'new',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'firstName': firstName,
+      'lastName': lastName,
+      'positionTitle': positionTitle,
+      'email': email,
+      'phone': phone,
+      'organizationName': organizationName,
+      'apparelCategory': apparelCategory,
+      'estimatedQuantity': estimatedQuantity,
+      'packageType': packageType,
+      'targetDeliveryDate': targetDeliveryDate != null ? Timestamp.fromDate(targetDeliveryDate!) : null,
+      'designVision': designVision,
+      'status': status,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
 
   String get fullName => '$firstName $lastName';
   bool get isNew => status == 'new';

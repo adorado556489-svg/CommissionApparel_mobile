@@ -1,5 +1,8 @@
-
+﻿
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/auto_seeding_mock_auth.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/services/order_service.dart';
@@ -13,7 +16,7 @@ void main() {
     late int originalOrderCount;
 
     setUp(() {
-      authService = AuthService();
+      authService = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
       originalOrderCount = dummyParentOrders.length;
     });
 
@@ -26,10 +29,10 @@ void main() {
     });
 
     testWidgets('Draft direct order is saved correctly', (tester) async {
-      authService.login('coach@example.com', 'password123');
+      await authService.login('coach@example.com', 'password123');
       final coach = authService.currentUser!;
 
-      final error = OrderService.submitDirectOrder(
+      final error = await OrderService.submitDirectOrder(FakeFirebaseFirestore(), 
         currentUser: coach,
         orderType: 'person',
         athleteFirstName: 'Test',
@@ -60,14 +63,14 @@ void main() {
     });
 
     testWidgets('Finalizing direct orders batches them and updates status', (tester) async {
-      authService.login('coach@example.com', 'password123');
+      await authService.login('coach@example.com', 'password123');
       final coach = authService.currentUser!;
 
       // Initial state has order-6 as 'Draft'
       var draftOrders = dummyParentOrders.where((o) => o.teamStoreId == null && o.userId == coach.id && o.status == 'Draft').toList();
       expect(draftOrders.length, greaterThanOrEqualTo(1));
 
-      final error = OrderService.finalizeDirectOrders(coach);
+      final error = await OrderService.finalizeDirectOrders(FakeFirebaseFirestore(), coach);
       expect(error, isNull);
 
       draftOrders = dummyParentOrders.where((o) => o.teamStoreId == null && o.userId == coach.id && o.status == 'Draft').toList();
@@ -79,10 +82,10 @@ void main() {
     });
 
     testWidgets('Archiving a batch marks it as archived', (tester) async {
-      authService.login('coach@example.com', 'password123');
+      await authService.login('coach@example.com', 'password123');
       final coach = authService.currentUser!;
 
-      final error = OrderService.archiveDirectOrderBatch(coach, 'batch-direct-1');
+      final error = await OrderService.archiveDirectOrderBatch(FakeFirebaseFirestore(), coach, 'batch-direct-1');
       expect(error, isNull);
 
       final batchedOrder = dummyParentOrders.firstWhere((o) => o.id == 'order-7');
@@ -93,3 +96,5 @@ void main() {
     });
   });
 }
+
+

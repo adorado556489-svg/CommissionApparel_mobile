@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/glass_panel.dart';
-import '../../data/dummy_catalog.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/catalog_service.dart';
 import '../../models/design_collection.dart';
 
 class CatalogScreen extends StatefulWidget {
@@ -14,16 +16,38 @@ class CatalogScreen extends StatefulWidget {
 
 class _CatalogScreenState extends State<CatalogScreen> {
   String _selectedCategory = 'All Categories';
+  List<DesignCollection> _collections = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCollections();
+  }
+
+  Future<void> _loadCollections() async {
+    final firestore = context.read<FirebaseFirestore>();
+    final collections = await CatalogService.getAllDesignCollections(firestore);
+    if (mounted) {
+      setState(() {
+        _collections = collections;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const AppScaffold(title: 'Catalog', body: Center(child: CircularProgressIndicator()));
+    }
     // Determine unique sports/categories (in dummy data, collections map to sports)
-    final allCategories = ['All Categories', ...dummyDesignCollections.map((c) => c.name).toList()];
+    final allCategories = ['All Categories', ..._collections.map((c) => c.name).toList()];
 
     // Filter collections based on selection
     final filteredCollections = _selectedCategory == 'All Categories' 
-        ? dummyDesignCollections 
-        : dummyDesignCollections.where((c) => c.name == _selectedCategory).toList();
+        ? _collections 
+        : _collections.where((c) => c.name == _selectedCategory).toList();
 
     return AppScaffold(
       title: 'Design Collections',
@@ -189,3 +213,4 @@ class _CatalogScreenState extends State<CatalogScreen> {
     );
   }
 }
+

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum UserRole { admin, coach, parent }
 
 class User {
@@ -35,6 +37,47 @@ class User {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  factory User.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return User(
+      id: doc.id,
+      firstName: data['firstName'] ?? '',
+      lastName: data['lastName'] ?? '',
+      email: data['email'] ?? '',
+      password: data['password'] ?? '', // Will be removed in Firestore
+      role: UserRole.values.firstWhere(
+        (e) => e.name == (data['role'] ?? 'parent'),
+        orElse: () => UserRole.parent,
+      ),
+      status: data['status'] ?? 'active',
+      organization: data['organization'],
+      phone: data['phone'],
+      sport: data['sport'],
+      logoPath: data['logoPath'],
+      assignedDesignIds: List<String>.from(data['assignedDesignIds'] ?? []),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'firstName': firstName,
+      'lastName': lastName,
+      'email': email,
+      // 'password': password, // Don't sync plain-text password
+      'role': role.name,
+      'status': status,
+      'organization': organization,
+      'phone': phone,
+      'sport': sport,
+      'logoPath': logoPath,
+      'assignedDesignIds': assignedDesignIds,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
 
   String get fullName => '$firstName $lastName';
   bool get isAdmin => role == UserRole.admin;

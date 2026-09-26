@@ -1,5 +1,9 @@
+
+import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:commission_apparel_flutter/app/theme.dart';
 
@@ -10,8 +14,11 @@ import 'package:commission_apparel_flutter/screens/admin/admin_dashboard_screen.
 
 
 Widget createTestApp(Widget home, AuthService auth) {
-  return ChangeNotifierProvider.value(
-    value: auth,
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider.value(value: auth),
+      Provider<FirebaseFirestore>.value(value: FakeFirebaseFirestore()),
+    ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
       home: home,
@@ -23,12 +30,12 @@ void main() {
   late AuthService auth;
 
   setUp(() {
-    auth = AuthService();
+    auth = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
   });
 
   group('Phase 5C - Admin Catalog Functionality', () {
     testWidgets('Admin can create a collection', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password123');
+      await auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -49,7 +56,7 @@ void main() {
     });
     
     testWidgets('Admin can create a design', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password123');
+      await auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -77,3 +84,8 @@ void main() {
     });
   });
 }
+
+
+
+
+

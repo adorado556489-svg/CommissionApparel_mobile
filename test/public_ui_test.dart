@@ -1,13 +1,20 @@
+
+import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/app/routes.dart';
 import 'package:commission_apparel_flutter/app/theme.dart';
 
 Widget createTestApp(String initialRoute, {Object? arguments}) {
-  return ChangeNotifierProvider(
-    create: (_) => AuthService(),
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth())),
+      Provider<FirebaseFirestore>.value(value: FakeFirebaseFirestore()),
+    ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
       initialRoute: initialRoute,
@@ -97,3 +104,7 @@ void main() {
     });
   });
 }
+
+
+
+

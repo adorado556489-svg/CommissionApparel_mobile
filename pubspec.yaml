@@ -14,11 +14,17 @@ dependencies:
   google_fonts: ^6.2.1
   provider: ^6.1.2
   image_picker: ^1.2.3
+  firebase_core: ^4.15.0
+  firebase_auth: ^6.7.0
+  cloud_firestore: ^6.10.0
+  firebase_storage: ^13.6.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  firebase_auth_mocks: ^0.15.2
+  fake_cloud_firestore: ^4.3.0
 
 flutter:
   uses-material-design: true

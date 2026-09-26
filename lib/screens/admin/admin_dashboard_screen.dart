@@ -7,8 +7,11 @@ import '../../widgets/glass_panel.dart';
 import '../../app/theme.dart';
 import '../../data/dummy_stores.dart';
 import '../../data/dummy_users.dart';
-import '../../data/dummy_orders.dart';
+import '../../services/order_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/admin_service.dart';
 import '../../models/team_store.dart';
+import '../../services/store_service.dart';
 import '../../models/parent_order.dart';
 
 import 'widgets/admin_collections_tab.dart';
@@ -36,112 +39,108 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     super.dispose();
   }
 
-  void _approveStore(TeamStore store) {
-    setState(() {
-      final index = dummyTeamStores.indexWhere((s) => s.id == store.id);
-      if (index != -1) {
-        dummyTeamStores[index] = store.copyWith(status: 'approved');
-      }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Store "${store.name}" has been activated.')),
-    );
+  Future<void> _approveStore(TeamStore store) async {
+    final firestore = context.read<FirebaseFirestore>();
+    await StoreService.updateStore(firestore, store.copyWith(status: 'approved'));
+    setState(() {});
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Store "${store.name}" has been activated.')));
   }
 
-  void _declineStore(TeamStore store) {
-    setState(() {
-      final index = dummyTeamStores.indexWhere((s) => s.id == store.id);
-      if (index != -1) {
-        dummyTeamStores[index] = store.copyWith(status: 'declined');
-      }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Store "${store.name}" has been declined.')),
-    );
+  Future<void> _declineStore(TeamStore store) async {
+    final firestore = context.read<FirebaseFirestore>();
+    await StoreService.updateStore(firestore, store.copyWith(status: 'declined'));
+    setState(() {});
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Store "${store.name}" has been declined.')));
   }
 
-  void _markBatchAddressed(String batchId) {
-    setState(() {
-      for (int i = 0; i < dummyParentOrders.length; i++) {
-        if (dummyParentOrders[i].batchId == batchId) {
-          dummyParentOrders[i] = dummyParentOrders[i].copyWith(
-            status: 'Processing',
-            isArchived: true,
-          );
-        }
-      }
-    });
+  Future<void> _markBatchAddressed(String batchId, bool isDirect) async {
+    final admin = context.read<AuthService>().currentUser!;
+    if (isDirect) {
+      await AdminService.markDirectBatchAddressed(context.read<FirebaseFirestore>(), admin, batchId);
+    } else {
+      await AdminService.markStoreBatchAddressed(context.read<FirebaseFirestore>(), admin, batchId);
+    }
+    setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Master Order Batch marked as addressed and archived.')),
     );
   }
 
-  void _createCampaignStore() {
+  Future<void> _createCampaignStore() async {
     final user = context.read<AuthService>().currentUser;
     if (user == null) return;
     
-    setState(() {
-      final newStore = TeamStore(
-        id: 'store-campaign-${DateTime.now().millisecondsSinceEpoch}',
-        userId: user.id,
-        name: 'New Campaign Store',
-        slug: 'campaign-${DateTime.now().millisecondsSinceEpoch}',
-        status: 'approved',
-        pricingApproved: true,
-        packageType: 'individual',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      dummyTeamStores.add(newStore);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Campaign Store created successfully.')),
+    final firestore = context.read<FirebaseFirestore>();
+    final newStore = TeamStore(
+      id: 'store-campaign-${DateTime.now().millisecondsSinceEpoch}',
+      userId: user.id,
+      name: 'New Campaign Store',
+      slug: 'campaign-${DateTime.now().millisecondsSinceEpoch}',
+      status: 'approved',
+      pricingApproved: true,
+      packageType: 'individual',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
+    await StoreService.createStore(firestore, newStore);
+    setState(() {});
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Campaign Store created successfully.')));
   }
 
   @override
   Widget build(BuildContext context) {
-    final pendingStores = dummyTeamStores.where((s) => s.status == 'pending').toList();
-    final campaignStores = dummyTeamStores.where((s) => dummyUsers.any((u) => u.id == s.userId && u.role == UserRole.admin)).toList();
-    
-    // Find unique submitted batches
-    final submittedBatches = <String, List<ParentOrder>>{};
-    for (final order in dummyParentOrders) {
-      if (order.status == 'Submitted to Admin' && order.batchId != null) {
-        submittedBatches.putIfAbsent(order.batchId!, () => []).add(order);
-      }
-    }
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        OrderService.getAllOrders(context.read<FirebaseFirestore>()),
+        StoreService.getPendingStores(context.read<FirebaseFirestore>()),
+        StoreService.getCampaignStores(context.read<FirebaseFirestore>()),
+      ]),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        
+        final allOrders = snapshot.data![0] as List<ParentOrder>;
+        final pendingStores = snapshot.data![1] as List<TeamStore>;
+        final campaignStores = snapshot.data![2] as List<TeamStore>;
+        
+        final submittedBatches = <String, List<ParentOrder>>{};
+        for (final order in allOrders) {
+          if (order.status == 'Submitted to Admin' && order.batchId != null) {
+            submittedBatches.putIfAbsent(order.batchId!, () => []).add(order);
+          }
+        }
 
-    return AppScaffold(
-      title: 'Admin Dashboard',
-      currentNavIndex: 1,
-      body: Column(
-        children: [
-          TabBar(
-            controller: _tabController,
-            labelColor: AppTheme.primary,
-            unselectedLabelColor: AppTheme.textMuted,
-            indicatorColor: AppTheme.primary,
-            tabs: const [
-              Tab(text: 'STORES & ORDERS'),
-              Tab(text: 'CAMPAIGN STORES'),
-                Tab(text: 'COLLECTIONS'),
-                Tab(text: 'CATALOG'),
+        return AppScaffold(
+          title: 'Admin Dashboard',
+          currentNavIndex: 1,
+          body: Column(
+            children: [
+              TabBar(
+                controller: _tabController,
+                labelColor: AppTheme.primary,
+                unselectedLabelColor: AppTheme.textMuted,
+                indicatorColor: AppTheme.primary,
+                tabs: const [
+                  Tab(text: 'STORES & ORDERS'),
+                  Tab(text: 'CAMPAIGN STORES'),
+                    Tab(text: 'COLLECTIONS'),
+                    Tab(text: 'CATALOG'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildStoresAndOrdersTab(pendingStores, submittedBatches),
+                    _buildCampaignStoresTab(campaignStores),
+                      const AdminCollectionsTab(),
+                      const AdminCatalogTab(),
+                  ],
+                ),
+              ),
             ],
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildStoresAndOrdersTab(pendingStores, submittedBatches),
-                _buildCampaignStoresTab(campaignStores),
-                  const AdminCollectionsTab(),
-                  const AdminCatalogTab(),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      }
     );
   }
 
@@ -212,7 +211,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                       ),
                       const SizedBox(width: 8),
                       OutlinedButton(
-                        onPressed: () => _markBatchAddressed(batchId),
+                        onPressed: () => _markBatchAddressed(batchId, orders.first.teamStoreId == null),
                         style: OutlinedButton.styleFrom(foregroundColor: Colors.green, side: const BorderSide(color: Colors.green)),
                         child: const Text('MARK ADDRESSED'),
                       ),

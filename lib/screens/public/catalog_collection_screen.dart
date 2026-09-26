@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../widgets/app_scaffold.dart';
-import '../../data/dummy_catalog.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/design_collection.dart';
+import '../../services/catalog_service.dart';
 import '../../models/design_catalog.dart';
 
 class CatalogCollectionScreen extends StatefulWidget {
@@ -15,16 +18,37 @@ class CatalogCollectionScreen extends StatefulWidget {
 
 class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
   String _selectedSport = 'All Sports';
+  DesignCollection? _collection;
+  List<DesignCatalog> _catalogItems = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final firestore = context.read<FirebaseFirestore>();
+    final collections = await CatalogService.getAllDesignCollections(firestore);
+    final catalog = await CatalogService.getAllDesignCatalog(firestore);
+    if (mounted) {
+      setState(() {
+        _collection = collections.firstWhere((c) => c.id == widget.collectionId, orElse: () => collections.first);
+        _catalogItems = catalog;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final collection = dummyDesignCollections.firstWhere(
-      (c) => c.id == widget.collectionId,
-      orElse: () => dummyDesignCollections.first,
-    );
+    if (_isLoading) return const AppScaffold(title: 'Collection', body: Center(child: CircularProgressIndicator()));
+    final collection = _collection!;
+
 
     // Filter designs
-    var designs = dummyDesignCatalog.where((d) => d.designCollectionId == collection.id).toList();
+    var designs = _catalogItems.where((d) => d.designCollectionId == collection.id).toList();
     
     final availableSports = designs.map((d) => d.sport).whereType<String>().toSet().toList();
     availableSports.insert(0, 'All Sports');
@@ -257,3 +281,5 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
     );
   }
 }
+
+

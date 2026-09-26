@@ -38,7 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     setState(() => _errorMessage = null);
 
     if (!_formKey.currentState!.validate()) return;
@@ -49,7 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     final auth = context.read<AuthService>();
-    final error = auth.register(
+    final error = await auth.register(
       firstName: _firstNameController.text,
       lastName: _lastNameController.text,
       email: _emailController.text,
@@ -215,3 +215,5 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+
+

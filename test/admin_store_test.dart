@@ -1,5 +1,9 @@
+
+import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:commission_apparel_flutter/app/theme.dart';
 import 'package:commission_apparel_flutter/data/dummy_stores.dart';
@@ -8,8 +12,11 @@ import 'package:commission_apparel_flutter/screens/admin/admin_dashboard_screen.
 import 'package:commission_apparel_flutter/screens/admin/admin_store_edit_screen.dart';
 
 Widget createTestApp(Widget home, AuthService auth) {
-  return ChangeNotifierProvider.value(
-    value: auth,
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider.value(value: auth),
+      Provider<FirebaseFirestore>.value(value: FakeFirebaseFirestore()),
+    ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
       home: home,
@@ -21,7 +28,7 @@ void main() {
   late AuthService auth;
 
   setUp(() {
-    auth = AuthService();
+    auth = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
     final s4Idx = dummyTeamStores.indexWhere((s) => s.id == 'store-4');
     if (s4Idx != -1) {
       dummyTeamStores[s4Idx] = dummyTeamStores[s4Idx].copyWith(status: 'pending');
@@ -34,7 +41,7 @@ void main() {
 
   group('Phase 5B - Admin Store Functionality', () {
     testWidgets('Admin dashboard renders pending stores and campaign stores', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password123');
+      await auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -50,7 +57,7 @@ void main() {
     });
 
     testWidgets('Admin can approve a pending store', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password123');
+      await auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -63,7 +70,7 @@ void main() {
     });
 
     testWidgets('Admin can create a campaign store', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password123');
+      await auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -81,7 +88,7 @@ void main() {
     });
 
     testWidgets('Admin Store Edit Screen renders components', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password123');
+      await auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminStoreEditScreen(storeId: 'store-1'), auth));
       await tester.pumpAndSettle();
 
@@ -92,7 +99,7 @@ void main() {
     });
 
     testWidgets('Admin can update bulk pricing', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password123');
+      await auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminStoreEditScreen(storeId: 'store-1'), auth));
       await tester.pumpAndSettle();
 
@@ -113,7 +120,7 @@ void main() {
     });
 
     testWidgets('Admin can archive and unarchive a store', (tester) async {
-      auth.login('admin@commissionapparel.com', 'password123');
+      await auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminStoreEditScreen(storeId: 'store-1'), auth));
       await tester.pumpAndSettle();
 
@@ -130,3 +137,8 @@ void main() {
     });
   });
 }
+
+
+
+
+

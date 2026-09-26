@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:commission_apparel_flutter/app/app.dart';
 
@@ -15,7 +16,8 @@ void main() {
   });
 
   testWidgets('App renders home screen', (WidgetTester tester) async {
-    await tester.pumpWidget(const CommissionApparelApp());
+    await tester.pumpWidget(CommissionApparelApp(firestore: FakeFirebaseFirestore()));
     expect(find.text('Commission Apparel'), findsWidgets);
   });
 }
+

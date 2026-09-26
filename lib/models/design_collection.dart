@@ -1,4 +1,6 @@
-/// Design collection model matching the Laravel `DesignCollection` model.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Design collection model matching the Laravel DesignCollection model.
 ///
 /// Groups related [DesignCatalog] items by collection (e.g., "Basketball",
 /// "Football"). Admin manages collections via the catalog management UI.
@@ -18,6 +20,28 @@ class DesignCollection {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  factory DesignCollection.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return DesignCollection(
+      id: doc.id,
+      name: data['name'] ?? '',
+      imagePath: data['imagePath'],
+      sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'name': name,
+      'imagePath': imagePath,
+      'sortOrder': sortOrder,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
 
   DesignCollection copyWith({
     String? id,

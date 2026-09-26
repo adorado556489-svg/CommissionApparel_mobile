@@ -1,10 +1,12 @@
-/// Design catalog model matching the Laravel `DesignCatalog` Eloquent model.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Design catalog model matching the Laravel DesignCatalog Eloquent model.
 ///
 /// Represents a product template in the master catalog that admin manages.
 /// Coaches add catalog items to their stores as [StoreItem]s.
 class DesignCatalog {
   final String id;
-  final String? designCollectionId; // FK → DesignCollection
+  final String? designCollectionId; // FK -> DesignCollection
   final String name;
   final String? description;
   final String? sport;
@@ -41,16 +43,57 @@ class DesignCatalog {
     required this.updatedAt,
   });
 
-  // ── Computed Properties ─────────────────────────────────────────────────
+  factory DesignCatalog.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return DesignCatalog(
+      id: doc.id,
+      designCollectionId: data['designCollectionId'],
+      name: data['name'] ?? '',
+      description: data['description'],
+      sport: data['sport'],
+      type: data['type'],
+      types: List<String>.from(data['types'] ?? []),
+      category: data['category'] ?? 'individual',
+      imageUrl: data['imageUrl'],
+      imagePaths: List<String>.from(data['imagePaths'] ?? []),
+      wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble() ?? 0.0,
+      hasNameField: data['hasNameField'] ?? false,
+      hasNumberField: data['hasNumberField'] ?? false,
+      notes: data['notes'],
+      sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
 
-  /// Whether this is a package (bundle of multiple garment types).
+  Map<String, dynamic> toFirestore() {
+    return {
+      'designCollectionId': designCollectionId,
+      'name': name,
+      'description': description,
+      'sport': sport,
+      'type': type,
+      'types': types,
+      'category': category,
+      'imageUrl': imageUrl,
+      'imagePaths': imagePaths,
+      'wholesalePrice': wholesalePrice,
+      'hasNameField': hasNameField,
+      'hasNumberField': hasNumberField,
+      'notes': notes,
+      'sortOrder': sortOrder,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  // Computed Properties
+
   bool get isPackage => category != 'individual';
 
-  /// The primary display image.
   String? get displayImage =>
       imagePaths.isNotEmpty ? imagePaths.first : imageUrl;
 
-  /// Human-readable category label.
   String get categoryLabel {
     switch (category) {
       case 'package_a':
@@ -64,15 +107,11 @@ class DesignCatalog {
     }
   }
 
-  /// Human-readable type label (from types list or legacy type field).
   String get typeLabel {
     if (types.isNotEmpty) return types.join(', ');
     return type ?? 'Apparel';
   }
 
-  // ── Static Methods (matching Laravel DesignCatalog statics) ─────────────
-
-  /// Garment types that require size selection in order forms.
   static List<String> sizedTypes() => [
     'Jersey',
     'Shorts',
@@ -82,13 +121,11 @@ class DesignCatalog {
     'Pants',
   ];
 
-  /// Size chart organized by size group.
   static Map<String, List<String>> sizeChart() => {
     'Youth': ['YS', 'YM', 'YL'],
     'Adult': ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'],
   };
 
-  /// All available sizes in a flat list.
   static List<String> allSizes() => [
     'YS', 'YM', 'YL', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL',
   ];
@@ -137,5 +174,3 @@ class DesignCatalog {
   @override
   String toString() => 'DesignCatalog($id, $name, $category)';
 }
-
-

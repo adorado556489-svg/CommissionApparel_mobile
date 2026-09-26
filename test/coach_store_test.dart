@@ -1,5 +1,9 @@
+
+import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:commission_apparel_flutter/app/theme.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
@@ -8,8 +12,11 @@ import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/screens/coach/coach_dashboard_screen.dart';
 
 Widget createTestApp(Widget home, AuthService auth) {
-  return ChangeNotifierProvider.value(
-    value: auth,
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider.value(value: auth),
+      Provider<FirebaseFirestore>.value(value: FakeFirebaseFirestore()),
+    ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
       home: home,
@@ -21,7 +28,7 @@ void main() {
   late AuthService auth;
 
   setUp(() {
-    auth = AuthService();
+    auth = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
     final idx = dummyUsers.indexWhere((u) => u.email == 'david.chen@trackclub.org');
     if (idx != -1) {
       dummyUsers[idx] = dummyUsers[idx].copyWith(status: 'active');
@@ -30,7 +37,7 @@ void main() {
 
   group('Phase 5A - Coach Store Functionality', () {
     testWidgets('Coach with existing store sees dashboard (cannot create another)', (tester) async {
-      auth.login('coach@example.com', 'password123'); // Marcus
+      await auth.login('coach@example.com', 'password123'); // Marcus
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -39,7 +46,7 @@ void main() {
     });
 
     testWidgets('Coach without store can create a store', (tester) async {
-      auth.login('david.chen@trackclub.org', 'password123'); // David Chen
+      await auth.login('david.chen@trackclub.org', 'password123'); // David Chen
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -55,7 +62,7 @@ void main() {
     });
 
     testWidgets('Coach can set deadline', (tester) async {
-      auth.login('david.chen@trackclub.org', 'password123');
+      await auth.login('david.chen@trackclub.org', 'password123');
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -69,7 +76,7 @@ void main() {
     });
 
     testWidgets('Coach can add assigned DesignCatalog item', (tester) async {
-      auth.login('david.chen@trackclub.org', 'password123');
+      await auth.login('david.chen@trackclub.org', 'password123');
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -83,7 +90,7 @@ void main() {
     });
 
     testWidgets('Coach cannot set retail price below wholesale; can set valid retail pricing', (tester) async {
-      auth.login('coach@example.com', 'password123');
+      await auth.login('coach@example.com', 'password123');
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -105,7 +112,7 @@ void main() {
     });
 
     testWidgets('Empty roster cannot be submitted', (tester) async {
-      auth.login('david.chen@trackclub.org', 'password123'); // David has no orders
+      await auth.login('david.chen@trackclub.org', 'password123'); // David has no orders
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -115,7 +122,7 @@ void main() {
     });
 
     testWidgets('Valid unbatched orders can be submitted; locks the store', (tester) async {
-      auth.login('coach@example.com', 'password123'); // Marcus has unbatched order-1
+      await auth.login('coach@example.com', 'password123'); // Marcus has unbatched order-1
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
@@ -169,3 +176,8 @@ void main() {
 
   });
 }
+
+
+
+
+

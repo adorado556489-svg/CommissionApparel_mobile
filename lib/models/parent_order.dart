@@ -1,15 +1,17 @@
-/// Parent order model matching the Laravel `ParentOrder` Eloquent model.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Parent order model matching the Laravel ParentOrder Eloquent model.
 ///
 /// Represents a parent's order for a specific athlete in a team store.
 /// The order contains athlete info, selected items with sizes/quantities
 /// in a structured [itemEntries] list, and pricing totals.
 ///
-/// Key workflow: Orders are created by parents → approved by coaches →
-/// batched (grouped by batchId) → submitted to admin for processing.
+/// Key workflow: Orders are created by parents -> approved by coaches ->
+/// batched (grouped by batchId) -> submitted to admin for processing.
 class ParentOrder {
   final String id;
-  final String? teamStoreId; // FK → TeamStore
-  final String? userId; // FK → User (parent, null for direct orders)
+  final String? teamStoreId; // FK -> TeamStore
+  final String? userId; // FK -> User (parent, null for direct orders)
   final String athleteFirstName;
   final String athleteLastName;
   final String? gender;
@@ -49,22 +51,68 @@ class ParentOrder {
     required this.updatedAt,
   });
 
-  // ── Computed Properties ─────────────────────────────────────────────────
+  factory ParentOrder.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    
+    return ParentOrder(
+      id: doc.id,
+      teamStoreId: data['teamStoreId'],
+      userId: data['userId'],
+      athleteFirstName: data['athleteFirstName'] ?? '',
+      athleteLastName: data['athleteLastName'] ?? '',
+      gender: data['gender'],
+      jerseyName: data['jerseyName'],
+      jerseyNumber: data['jerseyNumber'],
+      backpackName: data['backpackName'],
+      itemEntries: (data['itemEntries'] as List<dynamic>? ?? [])
+          .map((item) => OrderItemEntry.fromMap(item as Map<String, dynamic>))
+          .toList(),
+      specialNotes: data['specialNotes'],
+      status: data['status'] ?? 'Pending Coach Approval',
+      isEdited: data['isEdited'] ?? false,
+      editedBy: data['editedBy'],
+      totalRetailPrice: (data['totalRetailPrice'] as num?)?.toDouble() ?? 0.0,
+      batchId: data['batchId'],
+      isArchived: data['isArchived'] ?? false,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
 
-  /// Full athlete name.
+  Map<String, dynamic> toFirestore() {
+    return {
+      'teamStoreId': teamStoreId,
+      'userId': userId,
+      'athleteFirstName': athleteFirstName,
+      'athleteLastName': athleteLastName,
+      'gender': gender,
+      'jerseyName': jerseyName,
+      'jerseyNumber': jerseyNumber,
+      'backpackName': backpackName,
+      'itemEntries': itemEntries.map((e) => e.toMap()).toList(),
+      'specialNotes': specialNotes,
+      'status': status,
+      'isEdited': isEdited,
+      'editedBy': editedBy,
+      'totalRetailPrice': totalRetailPrice,
+      'batchId': batchId,
+      'isArchived': isArchived,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  // Lifecycle Computed Properties
+
   String get athleteName => '$athleteFirstName $athleteLastName';
 
-  /// Whether this is a direct order placed by admin/coach (no parent user).
   bool get isDirectOrder => teamStoreId == null;
 
-  /// Whether the order has been batched for submission.
   bool get isBatched => batchId != null;
 
-  /// Whether this order is still editable (before batch submission).
   bool get isEditable =>
       status == 'Pending Coach Approval' && !isBatched && !isArchived;
 
-  /// Total number of individual items across all entries.
   int get totalItemCount {
     int count = 0;
     for (final entry in itemEntries) {
@@ -73,7 +121,6 @@ class ParentOrder {
     return count;
   }
 
-  /// Recalculate total retail price from item entries and their retail prices.
   double calculateTotalRetail(Map<String, double> retailPrices) {
     double total = 0;
     for (final entry in itemEntries) {
@@ -83,13 +130,6 @@ class ParentOrder {
     return total;
   }
 
-  // ── Batch Financials (matching Laravel static method) ───────────────────
-
-  /// Calculate aggregate financial summary for a batch of orders.
-  ///
-  /// [orders] — list of orders in the batch.
-  /// [retailPrices] — map of storeItemId → retail price.
-  /// [wholesalePrices] — map of storeItemId → wholesale price.
   static BatchFinancials calculateBatchFinancials({
     required List<ParentOrder> orders,
     required Map<String, double> retailPrices,
@@ -170,13 +210,13 @@ class ParentOrder {
 
 /// A single item entry in a parent order.
 ///
-/// Maps to one element in the Laravel `items_json` array.
+/// Maps to one element in the Laravel items_json array.
 /// For packages, [components] contains the sub-component items.
 class OrderItemEntry {
-  final String storeItemId; // FK → StoreItem
+  final String storeItemId; // FK -> StoreItem
   final String name; // denormalized item name
   final List<String> types; // garment types: ['Jersey', 'Shorts']
-  final Map<String, String> sizes; // type → selected size, e.g. {'Jersey': 'L'}
+  final Map<String, String> sizes; // type -> selected size, e.g. {'Jersey': 'L'}
   final int quantity;
   final List<OrderItemComponent> components; // sub-items for packages
 
@@ -189,7 +229,30 @@ class OrderItemEntry {
     this.components = const [],
   });
 
-  /// Whether this entry is for a package item with components.
+  factory OrderItemEntry.fromMap(Map<String, dynamic> map) {
+    return OrderItemEntry(
+      storeItemId: map['storeItemId'] ?? '',
+      name: map['name'] ?? '',
+      types: List<String>.from(map['types'] ?? []),
+      sizes: Map<String, String>.from(map['sizes'] ?? {}),
+      quantity: map['quantity'] ?? 1,
+      components: (map['components'] as List<dynamic>? ?? [])
+          .map((c) => OrderItemComponent.fromMap(c as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'storeItemId': storeItemId,
+      'name': name,
+      'types': types,
+      'sizes': sizes,
+      'quantity': quantity,
+      'components': components.map((c) => c.toMap()).toList(),
+    };
+  }
+
   bool get isPackage => components.isNotEmpty;
 }
 
@@ -198,15 +261,31 @@ class OrderItemEntry {
 /// Represents individual garments within a package (e.g., the "Shorts"
 /// component within a "Basketball Package" entry).
 class OrderItemComponent {
-  final String storeItemId; // FK → StoreItem (component)
+  final String storeItemId; // FK -> StoreItem (component)
   final String name; // e.g. 'Shorts'
-  final Map<String, String> sizes; // type → size
+  final Map<String, String> sizes; // type -> size
 
   const OrderItemComponent({
     required this.storeItemId,
     required this.name,
     this.sizes = const {},
   });
+
+  factory OrderItemComponent.fromMap(Map<String, dynamic> map) {
+    return OrderItemComponent(
+      storeItemId: map['storeItemId'] ?? '',
+      name: map['name'] ?? '',
+      sizes: Map<String, String>.from(map['sizes'] ?? {}),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'storeItemId': storeItemId,
+      'name': name,
+      'sizes': sizes,
+    };
+  }
 }
 
 /// Aggregate financial summary for a batch of orders.
@@ -231,6 +310,6 @@ class BatchFinancials {
 
   @override
   String toString() =>
-      'BatchFinancials(sales=\$$totalSales, net=\$$netProceeds, '
-      'items=$totalItemsSold, orders=$orderCount)';
+      'BatchFinancials(sales=\, net=\, '
+      'items=\, orders=\)';
 }

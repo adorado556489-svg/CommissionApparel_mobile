@@ -1,11 +1,13 @@
-/// Team store model matching the Laravel `TeamStore` Eloquent model.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Team store model matching the Laravel TeamStore Eloquent model.
 ///
 /// Represents a coach's storefront where parents can browse items and
-/// place orders. Has a defined lifecycle: pending → approved → live →
-/// submitted_to_admin → archived.
+/// place orders. Has a defined lifecycle: pending -> approved -> live ->
+/// submitted_to_admin -> archived.
 class TeamStore {
   final String id;
-  final String userId; // FK → User (coach owner)
+  final String userId; // FK -> User (coach owner)
   final String name;
   final String slug;
   final String? description;
@@ -34,20 +36,51 @@ class TeamStore {
     required this.updatedAt,
   });
 
-  // ── Lifecycle Computed Properties ───────────────────────────────────────
+  factory TeamStore.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return TeamStore(
+      id: doc.id,
+      userId: data['userId'] ?? '',
+      name: data['name'] ?? '',
+      slug: data['slug'] ?? '',
+      description: data['description'],
+      coverImagePath: data['coverImagePath'],
+      orderDeadline: (data['orderDeadline'] as Timestamp?)?.toDate(),
+      status: data['status'] ?? 'pending',
+      packageType: data['packageType'],
+      pricingApproved: data['pricingApproved'] ?? false,
+      isArchived: data['isArchived'] ?? false,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
 
-  /// Store is publicly visible and accepting orders.
+  Map<String, dynamic> toFirestore() {
+    return {
+      'userId': userId,
+      'name': name,
+      'slug': slug,
+      'description': description,
+      'coverImagePath': coverImagePath,
+      'orderDeadline': orderDeadline != null ? Timestamp.fromDate(orderDeadline!) : null,
+      'status': status,
+      'packageType': packageType,
+      'pricingApproved': pricingApproved,
+      'isArchived': isArchived,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  // Lifecycle Computed Properties
   bool get isLive =>
       status == 'approved' && pricingApproved && !isArchived && !isLocked && !isDeadlinePassed;
 
-  /// Store roster has been submitted — no more orders allowed.
   bool get isLocked => status == 'submitted_to_admin';
 
-  /// Whether the order deadline has passed.
   bool get isDeadlinePassed =>
       orderDeadline != null && orderDeadline!.isBefore(DateTime.now());
 
-  /// Returns the reason the store is closed, or `null` if open.
   String? get closedReason {
     if (isArchived) return 'archived';
     if (isLocked) return 'submitted_to_admin';
@@ -57,10 +90,8 @@ class TeamStore {
     return null;
   }
 
-  /// Whether the store is accepting orders.
   bool get isAcceptingOrders => closedReason == null;
 
-  /// Generates a slug from a store name.
   static String generateSlug(String name) {
     return name
         .toLowerCase()

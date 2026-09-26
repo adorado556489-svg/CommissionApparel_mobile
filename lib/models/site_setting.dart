@@ -1,4 +1,6 @@
-/// Site setting model matching the Laravel `SiteSetting` Eloquent model.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Site setting model matching the Laravel SiteSetting Eloquent model.
 ///
 /// Simple key-value pairs for admin-configurable site settings like hero
 /// text, contact info, and feature flags.
@@ -16,6 +18,26 @@ class SiteSetting {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  factory SiteSetting.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return SiteSetting(
+      id: doc.id,
+      key: data['key'] ?? '',
+      value: data['value'],
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'key': key,
+      'value': value,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
 
   /// Look up a setting by key from a list.
   static String? getValue(List<SiteSetting> settings, String key) {

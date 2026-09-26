@@ -1,4 +1,6 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
 import 'package:commission_apparel_flutter/models/parent_order.dart';
@@ -17,7 +19,7 @@ void main() {
     });
 
     group('Coach Cascade Tests', () {
-      test('Admin deleting a Coach cascades to TeamStores and ParentOrders', () {
+      test('Admin deleting a Coach cascades to TeamStores and ParentOrders', () async {
         // 1. Create a dummy coach
         final coach = User(
           id: 'cascade-coach-123',
@@ -83,7 +85,7 @@ void main() {
         final unrelatedOrderCount = dummyParentOrders.length;
 
         // Perform deletion
-        final error = AdminService.deleteCoach(adminUser, coach.id);
+        final error = await AdminService.deleteCoach(FakeFirebaseFirestore(), adminUser, coach.id);
         expect(error, isNull);
 
         // Verify cascading deletes
@@ -162,27 +164,27 @@ void main() {
         dummyParentOrders.removeWhere((o) => o.id == unrelatedStoreOrder.id || o.id == directOrder.id);
       });
 
-      test('Admin deletes a store-linked order succeeds', () {
-        final error = OrderService.deleteOrder(adminUser, unrelatedStoreOrder.id);
+      test('Admin deletes a store-linked order succeeds', () async {
+        final error = await OrderService.deleteOrder(FakeFirebaseFirestore(), adminUser, unrelatedStoreOrder.id);
         expect(error, isNull);
         expect(dummyParentOrders.any((o) => o.id == unrelatedStoreOrder.id), isFalse);
         
         // Let tearDown handle it missing by omitting it or recreating it... wait, tearDown removes matching IDs, so missing is fine.
       });
 
-      test('Admin deletes a direct order (teamStoreId == null) succeeds', () {
-        final error = OrderService.deleteOrder(adminUser, directOrder.id);
+      test('Admin deletes a direct order (teamStoreId == null) succeeds', () async {
+        final error = await OrderService.deleteOrder(FakeFirebaseFirestore(), adminUser, directOrder.id);
         expect(error, isNull);
         expect(dummyParentOrders.any((o) => o.id == directOrder.id), isFalse);
       });
 
-      test('Coach deletes their own authorized order preserves valid behavior', () {
-        final error = OrderService.deleteOrder(unrelatedCoach, unrelatedStoreOrder.id);
+      test('Coach deletes their own authorized order preserves valid behavior', () async {
+        final error = await OrderService.deleteOrder(FakeFirebaseFirestore(), unrelatedCoach, unrelatedStoreOrder.id);
         expect(error, isNull);
         expect(dummyParentOrders.any((o) => o.id == unrelatedStoreOrder.id), isFalse);
       });
 
-      test('Coach attempts to delete another Coach\'s store-linked order is denied', () {
+      test("Coach attempts to delete another Coach's store-linked order is denied", () async {
         // Create an invading coach
         final invadingCoach = User(
           id: 'invading-coach-123',
@@ -197,20 +199,24 @@ void main() {
         );
         dummyUsers.add(invadingCoach);
 
-        final error = OrderService.deleteOrder(invadingCoach, unrelatedStoreOrder.id);
+        final error = await OrderService.deleteOrder(FakeFirebaseFirestore(), invadingCoach, unrelatedStoreOrder.id);
         expect(error, equals('Unauthorized'));
         expect(dummyParentOrders.any((o) => o.id == unrelatedStoreOrder.id), isTrue);
 
         dummyUsers.removeWhere((u) => u.id == invadingCoach.id);
       });
 
-      test('Verify unrelated orders remain unchanged', () {
+      test('Verify unrelated orders remain unchanged', () async {
         // Admin deletes unrelated direct order
         final originalCount = dummyParentOrders.length;
-        OrderService.deleteOrder(adminUser, directOrder.id);
+        await OrderService.deleteOrder(FakeFirebaseFirestore(), adminUser, directOrder.id);
         expect(dummyParentOrders.length, originalCount - 1);
         expect(dummyParentOrders.any((o) => o.id == unrelatedStoreOrder.id), isTrue); // unrelated store order remains
       });
     });
   });
 }
+
+
+
+

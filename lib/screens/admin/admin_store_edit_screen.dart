@@ -8,6 +8,9 @@ import '../../data/dummy_stores.dart';
 import '../../models/team_store.dart';
 import '../../models/store_item.dart';
 import '../../data/dummy_catalog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../../services/store_service.dart';
 
 class AdminStoreEditScreen extends StatefulWidget {
   final String storeId;
@@ -18,6 +21,7 @@ class AdminStoreEditScreen extends StatefulWidget {
 }
 
 class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
+  bool _isLoading = true;
   late TeamStore _store;
   late List<StoreItem> _storeItems;
   final ImagePicker _picker = ImagePicker();
@@ -31,9 +35,16 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
     _loadStoreData();
   }
 
-  void _loadStoreData() {
-    _store = dummyTeamStores.firstWhere((s) => s.id == widget.storeId);
-    _storeItems = dummyStoreItems.where((i) => i.teamStoreId == widget.storeId).toList();
+  Future<void> _loadStoreData() async {
+    setState(() => _isLoading = true);
+    final firestore = context.read<FirebaseFirestore>();
+    final store = await StoreService.getStoreById(firestore, widget.storeId);
+    if (store == null) {
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+    _store = store;
+    _storeItems = await StoreService.getStoreItems(firestore, widget.storeId);
     
     _pricingControllers.clear();
     for (var item in _storeItems) {
@@ -42,6 +53,7 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
         TextEditingController(text: item.retailPrice.toString()),
       ];
     }
+    if (mounted) setState(() => _isLoading = false);
   }
   
   @override
@@ -56,94 +68,80 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
   Future<void> _pickCoverImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      setState(() {
-        final index = dummyTeamStores.indexWhere((s) => s.id == _store.id);
-        if (index != -1) {
-          dummyTeamStores[index] = _store.copyWith(coverImagePath: image.path);
-          _loadStoreData();
-        }
-      });
+      final firestore = context.read<FirebaseFirestore>();
+      await StoreService.updateStore(firestore, _store.copyWith(coverImagePath: image.path));
+      await _loadStoreData();
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cover image updated.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cover image updated.')));
       }
     }
   }
 
-  void _toggleArchive() {
-    setState(() {
-      final index = dummyTeamStores.indexWhere((s) => s.id == _store.id);
-      if (index != -1) {
-        dummyTeamStores[index] = _store.copyWith(isArchived: !_store.isArchived);
-        _loadStoreData();
-      }
-    });
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_store.isArchived ? 'Store archived.' : 'Store unarchived.')),
-    );
+  Future<void> _toggleArchive() async {
+    final firestore = context.read<FirebaseFirestore>();
+    await StoreService.updateStore(firestore, _store.copyWith(isArchived: !_store.isArchived));
+    await _loadStoreData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_store.isArchived ? 'Store archived.' : 'Store unarchived.')));
+    }
   }
 
-  void _updatePricing() {
-    // Note: Admin validation does NOT require retail >= wholesale per Laravel rules
-    setState(() {
-      for (var i = 0; i < dummyStoreItems.length; i++) {
-        final item = dummyStoreItems[i];
-        if (item.teamStoreId == _store.id && _pricingControllers.containsKey(item.id)) {
-          final wPrice = double.tryParse(_pricingControllers[item.id]![0].text) ?? item.wholesalePrice;
-          final rPrice = double.tryParse(_pricingControllers[item.id]![1].text) ?? item.retailPrice;
-          dummyStoreItems[i] = item.copyWith(wholesalePrice: wPrice, retailPrice: rPrice);
-        }
+  Future<void> _updatePricing() async {
+    final firestore = context.read<FirebaseFirestore>();
+    for (var item in _storeItems) {
+      if (_pricingControllers.containsKey(item.id)) {
+        final wPrice = double.tryParse(_pricingControllers[item.id]![0].text) ?? item.wholesalePrice;
+        final rPrice = double.tryParse(_pricingControllers[item.id]![1].text) ?? item.retailPrice;
+        await StoreService.updateStoreItem(firestore, item.copyWith(wholesalePrice: wPrice, retailPrice: rPrice));
       }
-      _loadStoreData();
-    });
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Store item pricing updated.')),
-    );
+    }
+    await _loadStoreData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Store item pricing updated.')));
+    }
   }
 
-  void _addDesignToStore(String designId) {
+  Future<void> _addDesignToStore(String designId) async {
     final design = dummyDesignCatalog.firstWhere((d) => d.id == designId);
-    setState(() {
-      final newItem = StoreItem(
-        id: 'item-${DateTime.now().millisecondsSinceEpoch}',
-        teamStoreId: _store.id,
-        designCatalogId: design.id,
-        name: design.name,
-        types: design.types,
-        imagePaths: design.imagePaths,
-        wholesalePrice: design.wholesalePrice ?? 15.0,
-        retailPrice: design.wholesalePrice ?? 20.0,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        sortOrder: 0,
-        componentIds: const [],
-      );
-      dummyStoreItems.add(newItem);
-      _loadStoreData();
-    });
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Item added to store.')),
+    final firestore = context.read<FirebaseFirestore>();
+    final newItem = StoreItem(
+      id: 'item-${DateTime.now().millisecondsSinceEpoch}',
+      teamStoreId: _store.id,
+      designCatalogId: design.id,
+      name: design.name,
+      types: design.types,
+      imagePaths: design.imagePaths,
+      wholesalePrice: design.wholesalePrice ?? 15.0,
+      retailPrice: design.wholesalePrice ?? 20.0,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      sortOrder: 0,
+      componentIds: const [],
     );
+    await StoreService.createStoreItem(firestore, newItem);
+    await _loadStoreData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item added to store.')));
+    }
   }
 
-  void _removeStoreItem(String itemId) {
-    setState(() {
-      dummyStoreItems.removeWhere((i) => i.id == itemId);
-      _loadStoreData();
-    });
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Item removed.')),
-    );
+  Future<void> _removeStoreItem(String itemId) async {
+    final firestore = context.read<FirebaseFirestore>();
+    await StoreService.deleteStoreItem(firestore, itemId);
+    await _loadStoreData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item removed.')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     return AppScaffold(
       title: 'Edit Store: ${_store.name}',
       currentNavIndex: 1,

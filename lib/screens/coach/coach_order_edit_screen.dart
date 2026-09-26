@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../services/order_service.dart';
 import '../../models/parent_order.dart';
@@ -41,12 +42,13 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
     });
   }
 
-  void _loadOrder() {
+  Future<void> _loadOrder() async {
     final user = context.read<AuthService>().currentUser;
     if (user == null) return;
-
+    
     try {
-      _order = dummyParentOrders.firstWhere((o) => o.id == widget.orderId);
+      final allOrders = await OrderService.getAllOrders(context.read<FirebaseFirestore>());
+      _order = allOrders.firstWhere((o) => o.id == widget.orderId);
 
       // Verify RBAC
       if (_order.teamStoreId != null) {
@@ -108,7 +110,7 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
       itemEntries: _editableItems,
     );
 
-    final error = OrderService.updateOrder(user, updatedOrder);
+    final error = await OrderService.updateOrder(context.read<FirebaseFirestore>(), user, updatedOrder);
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
@@ -121,7 +123,7 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
 
   Future<void> _deleteOrder() async {
     final user = context.read<AuthService>().currentUser!;
-    final error = OrderService.deleteOrder(user, _order.id);
+    final error = await OrderService.deleteOrder(context.read<FirebaseFirestore>(), user, _order.id);
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
@@ -301,3 +303,4 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
     );
   }
 }
+
