@@ -1,0 +1,50 @@
+﻿00:00 +0: loading C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_batch_test.dart
+00:00 +0: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_batch_test.dart: Admin Batch Management Tests Admin can mark direct batch as addressed
+00:00 +1: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_batch_test.dart: Admin Batch Management Tests Admin can mark store batch as addressed
+00:00 +2: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_batch_test.dart: Admin Batch Management Tests Admin can delete archived batch
+00:02 +3: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_catalog_test.dart: Phase 5C - Admin Catalog Functionality Admin can create a collection
+00:03 +4: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_catalog_test.dart: Phase 5C - Admin Catalog Functionality Admin can create a collection
+00:03 +5: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_catalog_test.dart: Phase 5C - Admin Catalog Functionality Admin can create a collection
+00:03 +6: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_catalog_test.dart: Phase 5C - Admin Catalog Functionality Admin can create a collection
+00:06 +7: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_catalog_test.dart: Phase 5C - Admin Catalog Functionality Admin can create a collection
+00:06 +8: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_content_test.dart: Admin Content Management Tests Admin can manage landing collections
+00:06 +9: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_catalog_test.dart: Phase 5C - Admin Catalog Functionality Admin can create a design
+00:06 +10: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_catalog_test.dart: Phase 5C - Admin Catalog Functionality Admin can create a design
+00:06 +11: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_catalog_test.dart: Phase 5C - Admin Catalog Functionality Admin can create a design
+00:10 +12: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin dashboard renders pending stores and campaign stores
+00:12 +13: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin dashboard renders pending stores and campaign stores
+00:12 +14: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin dashboard renders pending stores and campaign stores
+00:12 +15: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin dashboard renders pending stores and campaign stores
+00:12 +16: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin dashboard renders pending stores and campaign stores
+00:12 +17: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin dashboard renders pending stores and campaign stores
+00:14 +18: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin can approve a pending store
+00:15 +19: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin can create a campaign store
+00:15 +20: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin can create a campaign store
+00:15 +21: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/catalog_service_test.dart: Successful Firestore read: Uses Firestore data instead of dummy data
+00:15 +22: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin Store Edit Screen renders components
+00:15 +23: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin Store Edit Screen renders components
+00:16 +23: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/catalog_service_test.dart: Actual Firestore error behavior does NOT swallow permission-denied
+CRITICAL FIRESTORE ERROR [CatalogService.getAllDesignCatalog]: [cloud_firestore/permission-denied] Simulated error
+00:16 +24: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin Store Edit Screen renders components
+00:17 +25: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin can update bulk pricing
+00:18 +26: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/admin_store_test.dart: Phase 5B - Admin Store Functionality Admin can archive and unarchive a store
+00:20 +27: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/coach_direct_order_test.dart: Phase 8 - Coach Direct Orders Draft direct order is saved correctly
+00:21 +28: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/coach_direct_order_test.dart: Phase 8 - Coach Direct Orders Finalizing direct orders batches them and updates status
+00:21 +29: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/coach_direct_order_test.dart: Phase 8 - Coach Direct Orders Archiving a batch marks it as archived
+00:23 +30: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/coach_logo_test.dart: Phase I - Coach Logo Rendering Tests StoreDetailScreen renders placeholder icon when logoPath is null
+00:26 +31: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/coach_logo_test.dart: Phase I - Coach Logo Rendering Tests StoreDetailScreen renders placeholder icon when logoPath is null
+00:26 +32: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/coach_logo_test.dart: Phase I - Coach Logo Rendering Tests StoreDetailScreen renders placeholder icon when logoPath is null
+00:26 +33: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/coach_logo_test.dart: Phase I - Coach Logo Rendering Tests StoreDetailScreen renders placeholder icon when logoPath is null
+00:27 +34: C:/Users/User/Flutter Projects/commission_apparel_flutter/test/coach_logo_test.dart: Phase I - Coach Logo Rendering Tests StoreDetailScreen renders logo image when logoPath is provided
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: no matching candidates
+  Actual: _IconWidgetFinder:<Found 1 widget with icon "IconData(U+0E596)": [
+            Icon(IconData(U+0E596), size: 40.0, color: Color(alpha: 0.3020, red: 0.2784, green:
+0.3333, blue: 0.4118, colorSpace: ColorSpace.sRGB), dependencies: [Directionality, IconTheme]),
+          ]>
+   Which: means one was found but none were expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.<anonymous closure> (file:///C:/Users/User/Flutter%20Projects/commission_apparel_flutter/test/coach_logo_test.dart:67:7)
+<asynchronous suspension>
