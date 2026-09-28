@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
@@ -51,7 +51,7 @@ class NotificationsScreen extends StatelessWidget {
                 trailing: !n.isRead
                     ? TextButton(
                         onPressed: () async {
-                          await ContentService.markNotificationRead(firestore, n.id, user.id);
+                          await ContentService.markNotificationAsRead(firestore, n.id, user.id);
                         },
                         child: const Text('Mark Read', style: TextStyle(fontSize: 12)),
                       )

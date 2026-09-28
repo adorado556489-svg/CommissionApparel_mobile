@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:commission_apparel_flutter/data/dummy_data.dart';
+import 'fixtures/dummy_data.dart';
 import 'package:commission_apparel_flutter/models/parent_order.dart';
 import 'package:commission_apparel_flutter/models/site_setting.dart';
 import 'package:commission_apparel_flutter/models/design_catalog.dart';

@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:commission_apparel_flutter/services/admin_service.dart';
-import 'package:commission_apparel_flutter/data/dummy_users.dart';
+import 'fixtures/dummy_users.dart';
 
 void main() {
   group('Admin Coach Management Tests', () {

@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
@@ -6,9 +6,9 @@ import 'package:commission_apparel_flutter/models/team_store.dart';
 import 'package:commission_apparel_flutter/models/parent_order.dart';
 import 'package:commission_apparel_flutter/services/admin_service.dart';
 import 'package:commission_apparel_flutter/services/order_service.dart';
-import 'package:commission_apparel_flutter/data/dummy_users.dart';
-import 'package:commission_apparel_flutter/data/dummy_stores.dart';
-import 'package:commission_apparel_flutter/data/dummy_orders.dart';
+import 'fixtures/dummy_users.dart';
+import 'fixtures/dummy_stores.dart';
+import 'fixtures/dummy_orders.dart';
 
 void main() {
   group('Phase 9 Cleanup Tests', () {

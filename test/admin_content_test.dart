@@ -3,9 +3,9 @@ import 'package:commission_apparel_flutter/models/user.dart';
 import 'package:commission_apparel_flutter/models/landing_collection.dart';
 import 'package:commission_apparel_flutter/models/testimonial.dart';
 import 'package:commission_apparel_flutter/services/admin_service.dart';
-import 'package:commission_apparel_flutter/data/dummy_users.dart';
-import 'package:commission_apparel_flutter/data/dummy_content.dart';
-import 'package:commission_apparel_flutter/data/dummy_quotes.dart';
+import 'fixtures/dummy_users.dart';
+import 'fixtures/dummy_content.dart';
+import 'fixtures/dummy_quotes.dart';
 
 void main() {
   group('Admin Content Management Tests', () {

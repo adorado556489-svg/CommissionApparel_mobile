@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
@@ -47,7 +47,7 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
       (s) => s.id == widget.storeId,
       orElse: () => dummyTeamStores.first,
     );
-    storeItems = dummyStoreItems.where((i) => i.teamStoreId == store.id).toList();
+    storeItems = dummyStoreItems.cast<StoreItem>().where((i) => i.teamStoreId == store.id).toList();
 
     // Initialize state for each available item (unselected by default)
     for (final item in storeItems) {

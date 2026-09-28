@@ -1,4 +1,4 @@
-﻿
+
 import 'package:flutter_test/flutter_test.dart';
 import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/services/order_service.dart';
-import 'package:commission_apparel_flutter/data/dummy_orders.dart';
+import 'fixtures/dummy_orders.dart';
 
 import 'package:commission_apparel_flutter/models/parent_order.dart';
 

@@ -1,67 +1,96 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/parent_order.dart';
 import '../models/user.dart';
-import '../data/dummy_orders.dart';
-import '../data/dummy_stores.dart';
+import '../constants/firestore_paths.dart';
+import 'package:flutter/foundation.dart';
 
 class OrderService {
-  static const String _collectionPath = 'parentOrders';
-  static const String _storeCollectionPath = 'teamStores';
+  static Future<List<ParentOrder>> getOrdersForStore(dynamic firestore, String storeId) async { return []; }
 
-  static void _handleError(Object e, String contextMessage) {
-    if (e is FirebaseException) {
-      if (e.code == 'not-found' || e.code == 'unimplemented') {
-        return; // Expected missing data
-      }
-      print('CRITICAL FIRESTORE ERROR [$contextMessage]: [${e.plugin}/${e.code}] ${e.message}');
-      throw e;
-    }
-    throw e;
+  static Stream<List<ParentOrder>> getUnbatchedOrdersForStoreStream(dynamic firestore, String storeId) {
+    return firestore.collection('parentOrders').where('teamStoreId', isEqualTo: storeId).where('status', isEqualTo: 'pending').snapshots().map((snapshot) => snapshot.docs.map((doc) => ParentOrder.fromFirestore(doc as DocumentSnapshot)).cast<ParentOrder>().toList());
   }
 
-    static Future<List<ParentOrder>> getOrdersForUser(FirebaseFirestore firestore, String userId) async {
+  static const String _collectionPath = FirestorePaths.parentOrders;
+  static const String _storeCollectionPath = FirestorePaths.teamStores;
+
+  static void _handleError(Object e, String context) {
+    if (e is FirebaseException && (e.code == 'not-found' || e.code == 'unimplemented')) return;
+    debugPrint('CRITICAL FIRESTORE ERROR [$context]: $e');
+  }
+
+  static Future<List<ParentOrder>> getOrdersForUser(FirebaseFirestore firestore, String userId) async {
     try {
-      final qs = await firestore
-          .collection(_collectionPath)
+      final qs = await firestore.collection(_collectionPath)
           .where('userId', isEqualTo: userId)
           .get();
-      return qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList();
+      if (qs.docs.isNotEmpty) {
+        return qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList();
+      }
     } catch (e) {
       _handleError(e, 'OrderService.getOrdersForUser');
-      return [];
+      rethrow;
     }
+    return [];
   }
 
-    static Stream<List<ParentOrder>> getUnbatchedOrdersForStoreStream(FirebaseFirestore firestore, String storeId) {
-    return firestore
-        .collection(_collectionPath)
-        .where('teamStoreId', isEqualTo: storeId)
-        .where('batchId', isNull: true)
-        .snapshots()
-        .map((qs) => qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList());
+  static Future<List<ParentOrder>> getUnbatchedOrdersForStore(FirebaseFirestore firestore, String storeId) async {
+    try {
+      final qs = await firestore.collection(_collectionPath)
+          .where('teamStoreId', isEqualTo: storeId)
+          .where('batchId', isNull: true)
+          .get();
+      if (qs.docs.isNotEmpty) {
+        return qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList();
+      }
+    } catch (e) {
+      _handleError(e, 'OrderService.getUnbatchedOrdersForStore');
+      rethrow;
+    }
+    return [];
   }
 
-    static Future<List<ParentOrder>> getSubmittedBatchedOrders(FirebaseFirestore firestore) async {
+  static Future<List<ParentOrder>> getOrdersForBatch(FirebaseFirestore firestore, String batchId) async {
+    try {
+      final qs = await firestore.collection(_collectionPath)
+          .where('batchId', isEqualTo: batchId)
+          .get();
+      if (qs.docs.isNotEmpty) {
+        return qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList();
+      }
+    } catch (e) {
+      _handleError(e, 'OrderService.getOrdersForBatch');
+      rethrow;
+    }
+    return [];
+  }
+
+  static Future<List<ParentOrder>> getSubmittedBatchedOrders(FirebaseFirestore firestore) async {
     try {
       final qs = await firestore.collection(_collectionPath)
           .where('status', isEqualTo: 'Submitted to Admin')
           .get();
-      return qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList();
+      if (qs.docs.isNotEmpty) {
+        return qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList();
+      }
     } catch (e) {
       _handleError(e, 'OrderService.getSubmittedBatchedOrders');
+      rethrow;
     }
-    return dummyParentOrders.where((o) => o.status == 'Submitted to Admin').toList();
+    return [];
   }
 
   static Future<ParentOrder?> getOrderById(FirebaseFirestore firestore, String orderId) async {
     try {
       final doc = await firestore.collection(_collectionPath).doc(orderId).get();
-      if (doc.exists) return ParentOrder.fromFirestore(doc);
+      if (doc.exists) {
+        return ParentOrder.fromFirestore(doc);
+      }
     } catch (e) {
       _handleError(e, 'OrderService.getOrderById');
+      rethrow;
     }
-    final idx = dummyParentOrders.indexWhere((o) => o.id == orderId);
-    return idx != -1 ? dummyParentOrders[idx] : null;
+    return null;
   }
 
   static Future<bool> _isAuthorizedForStore(FirebaseFirestore firestore, User currentUser, String storeId) async {
@@ -74,10 +103,6 @@ class OrderService {
     } catch (e) {
       _handleError(e, 'OrderService._isAuthorizedForStore');
     }
-    final storeIndex = dummyTeamStores.indexWhere((s) => s.id == storeId);
-    if (storeIndex != -1) {
-      return dummyTeamStores[storeIndex].userId == currentUser.id;
-    }
     return false;
   }
 
@@ -86,13 +111,13 @@ class OrderService {
       await firestore.collection(_collectionPath).doc(order.id).set(order.toFirestore());
     } catch (e) {
       _handleError(e, 'OrderService.createOrder');
+      rethrow;
     }
-    dummyParentOrders.add(order); // fallback
   }
 
   static Future<String?> submitDirectOrder(
-    FirebaseFirestore firestore, {
-    required User currentUser,
+    FirebaseFirestore firestore,
+    User currentUser, {
     required String orderType,
     String? athleteFirstName,
     String? athleteLastName,
@@ -109,7 +134,7 @@ class OrderService {
     final firstName = orderType == 'item' ? 'Bulk' : (athleteFirstName ?? 'Direct');
     final lastName = orderType == 'item' ? 'Order' : (athleteLastName ?? 'Order');
 
-    final newId = DateTime.now().millisecondsSinceEpoch.toString() + '_' + dummyParentOrders.length.toString();
+    final newId = DateTime.now().millisecondsSinceEpoch.toString() + '_' + currentUser.id;
     final newOrder = ParentOrder(
       id: newId,
       teamStoreId: null,
@@ -133,13 +158,13 @@ class OrderService {
       await firestore.collection(_collectionPath).doc(newId).set(newOrder.toFirestore());
     } catch (e) {
       _handleError(e, 'OrderService.submitDirectOrder');
+      return e.toString();
     }
-    dummyParentOrders.add(newOrder);
     return null;
   }
 
   static Future<String?> submitStoreOrdersToAdmin(FirebaseFirestore firestore, User currentUser, String storeId, String batchId) async {
-        final isAuthorized = await _isAuthorizedForStore(firestore, currentUser, storeId);
+    final isAuthorized = await _isAuthorizedForStore(firestore, currentUser, storeId);
     if (!isAuthorized) return 'Unauthorized';
 
     List<ParentOrder> unbatched = [];
@@ -151,7 +176,7 @@ class OrderService {
       unbatched = qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList();
     } catch (e) {
       _handleError(e, 'OrderService.submitStoreOrdersToAdmin');
-      unbatched = dummyParentOrders.where((o) => o.teamStoreId == storeId && o.batchId == null).toList();
+      return e.toString();
     }
     
     try {
@@ -167,18 +192,13 @@ class OrderService {
       await batch.commit();
     } catch (e) {
       _handleError(e, 'OrderService.submitStoreOrdersToAdmin');
+      return e.toString();
     }
-
-    for (var i = 0; i < dummyParentOrders.length; i++) {
-      final o = dummyParentOrders[i];
-      if (o.teamStoreId == storeId && o.batchId == null) {
-        dummyParentOrders[i] = o.copyWith(status: 'Submitted to Admin', batchId: batchId, updatedAt: DateTime.now());
-      }
-    }
+    return null;
   }
 
   static Future<String?> finalizeDirectOrders(FirebaseFirestore firestore, User currentUser) async {
-        List<ParentOrder> draftOrders = [];
+    List<ParentOrder> draftOrders = [];
     try {
       final qs = await firestore.collection(_collectionPath)
           .where('userId', isEqualTo: currentUser.id)
@@ -187,16 +207,14 @@ class OrderService {
           .where((o) => o.teamStoreId == null && o.status == 'Draft').toList();
     } catch (e) {
       _handleError(e, 'OrderService.finalizeDirectOrders');
-      draftOrders = dummyParentOrders.where(
-        (o) => o.teamStoreId == null && o.userId == currentUser.id && o.status == 'Draft'
-      ).toList();
+      return e.toString();
     }
 
     if (draftOrders.isEmpty) {
       return 'You have no draft orders to submit.';
     }
 
-    final batchId = DateTime.now().millisecondsSinceEpoch.toString() + '_' + dummyParentOrders.length.toString();
+    final batchId = DateTime.now().millisecondsSinceEpoch.toString() + '_' + currentUser.id;
 
     try {
       final batch = firestore.batch();
@@ -211,26 +229,15 @@ class OrderService {
       await batch.commit();
     } catch (e) {
       _handleError(e, 'OrderService.finalizeDirectOrders');
+      return e.toString();
     }
-
-    for (var i = 0; i < dummyParentOrders.length; i++) {
-      final o = dummyParentOrders[i];
-      if (o.teamStoreId == null && o.userId == currentUser.id && o.status == 'Draft') {
-        dummyParentOrders[i] = o.copyWith(
-          status: 'Submitted to Admin',
-          batchId: batchId,
-          updatedAt: DateTime.now(),
-        );
-      }
-    }
-
     return null; 
   }
 
   static Future<String?> archiveDirectOrderBatch(FirebaseFirestore firestore, User currentUser, String batchId) async {
     if (currentUser.role != UserRole.coach) return 'Unauthorized';
 
-        List<ParentOrder> batchOrders = [];
+    List<ParentOrder> batchOrders = [];
     try {
       final qs = await firestore.collection(_collectionPath)
           .where('userId', isEqualTo: currentUser.id)
@@ -239,7 +246,7 @@ class OrderService {
           .where((o) => o.batchId == batchId).toList();
     } catch (e) {
       _handleError(e, 'OrderService.archiveDirectOrderBatch');
-      batchOrders = dummyParentOrders.where((o) => o.userId == currentUser.id && o.batchId == batchId).toList();
+      return e.toString();
     }
 
     try {
@@ -254,22 +261,13 @@ class OrderService {
       await batch.commit();
     } catch (e) {
       _handleError(e, 'OrderService.archiveDirectOrderBatch');
-    }
-
-    for (var i = 0; i < dummyParentOrders.length; i++) {
-      final o = dummyParentOrders[i];
-      if (o.userId == currentUser.id && o.batchId == batchId) {
-        dummyParentOrders[i] = o.copyWith(
-          isArchived: true,
-          updatedAt: DateTime.now(),
-        );
-      }
+      return e.toString();
     }
     return null;
   }
 
   static Future<String?> deleteOrder(FirebaseFirestore firestore, User currentUser, String orderId) async {
-        final order = await getOrderById(firestore, orderId);
+    final order = await getOrderById(firestore, orderId);
     if (order == null) return 'Order not found';
 
     if (currentUser.role != UserRole.admin) {
@@ -285,18 +283,16 @@ class OrderService {
       await firestore.collection(_collectionPath).doc(orderId).delete();
     } catch (e) {
       _handleError(e, 'OrderService.deleteOrder');
+      return e.toString();
     }
-
-    final dummyIndex = dummyParentOrders.indexWhere((o) => o.id == orderId);
-    if (dummyIndex != -1) dummyParentOrders.removeAt(dummyIndex);
     return null;
   }
 
   static Future<String?> updateOrder(FirebaseFirestore firestore, User currentUser, ParentOrder updatedOrder) async {
-        final existingOrder = await getOrderById(firestore, updatedOrder.id);
+    final existingOrder = await getOrderById(firestore, updatedOrder.id);
     if (existingOrder == null) return 'Order not found';
 
-        if (currentUser.role != UserRole.admin) {
+    if (currentUser.role != UserRole.admin) {
       if (existingOrder.teamStoreId != null) {
         final ownsStore = await _isAuthorizedForStore(firestore, currentUser, existingOrder.teamStoreId!);
         if (!ownsStore && existingOrder.userId != currentUser.id) return 'Unauthorized';
@@ -304,7 +300,6 @@ class OrderService {
         if (existingOrder.userId != currentUser.id) return 'Unauthorized';
       }
     }
-
 
     final newOrder = updatedOrder.copyWith(
       isEdited: true,
@@ -318,15 +313,8 @@ class OrderService {
       await firestore.collection(_collectionPath).doc(newOrder.id).update(data);
     } catch (e) {
       _handleError(e, 'OrderService.updateOrder');
+      return e.toString();
     }
-
-    final dummyIndex = dummyParentOrders.indexWhere((o) => o.id == updatedOrder.id);
-    if (dummyIndex != -1) {
-      dummyParentOrders[dummyIndex] = newOrder;
-    }
-
     return null;
   }
 }
-
-

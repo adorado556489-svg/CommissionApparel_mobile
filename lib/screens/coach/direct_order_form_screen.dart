@@ -87,7 +87,7 @@ class _DirectOrderFormScreenState extends State<DirectOrderFormScreen> {
 
     final error = await OrderService.submitDirectOrder(
       context.read<FirebaseFirestore>(),
-      currentUser: user,
+      user,
       orderType: _orderType,
       athleteFirstName: _firstNameCtrl.text.isEmpty ? null : _firstNameCtrl.text,
       athleteLastName: _lastNameCtrl.text.isEmpty ? null : _lastNameCtrl.text,

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../../app/theme.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/glass_panel.dart';
-import '../../data/dummy_stores.dart';
-import '../../data/dummy_users.dart';
 import '../../models/store_item.dart';
+import '../../models/team_store.dart';
+import '../../models/user.dart';
+import '../../services/store_service.dart';
+import '../../services/auth_service.dart';
 
 class StoreDetailScreen extends StatelessWidget {
   final String storeId;
@@ -13,270 +17,128 @@ class StoreDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final store = dummyTeamStores.firstWhere(
-      (s) => s.id == storeId,
-      orElse: () => dummyTeamStores.first,
-    );
-    final coach = dummyUsers.firstWhere((u) => u.id == store.userId, orElse: () => dummyAdmin);
-    final items = dummyStoreItems.where((i) => i.teamStoreId == store.id).toList();
-
-    return AppScaffold(
-      title: store.name,
-      currentNavIndex: 2,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildHero(context),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: _buildHeaderInfo(context, store, coach),
-            ),
+    final firestore = context.read<FirebaseFirestore>();
+    return FutureBuilder<TeamStore?>(
+      future: StoreService.getStoreById(firestore, storeId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return AppScaffold(title: 'Loading...', currentNavIndex: 2, body: Center(child: CircularProgressIndicator()));
+        final store = snapshot.data;
+        if (store == null) return AppScaffold(title: 'Store Not Found', currentNavIndex: 2, body: Center(child: Text('Store not found.')));
+        
+        return FutureBuilder<List<dynamic>>(
+          future: Future.wait([
+            AuthService(firestore: firestore).getUserById(store.userId),
+            StoreService.getStoreItems(firestore, store.id)
+          ]),
+          builder: (context, snapshot2) {
+            if (snapshot2.connectionState == ConnectionState.waiting) return AppScaffold(title: store.name, currentNavIndex: 2, body: Center(child: CircularProgressIndicator()));
+            final coach = snapshot2.data?[0] as User?;
+            final items = (snapshot2.data?[1] as List<StoreItem>?) ?? [];
             
-            if (!store.isLive)
-              _buildStoreClosedAlert(context, store),
-            
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: Text(
-                'AVAILABLE ITEMS',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            return AppScaffold(
+              title: store.name,
+              currentNavIndex: 2,
+              body: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHero(context),
+                    Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildStoreInfo(context, store, coach),
+                          const SizedBox(height: 24.0),
+                          Text('Available Items', style: Theme.of(context).textTheme.headlineSmall),
+                          const SizedBox(height: 16.0),
+                          if (items.isEmpty)
+                            const Text('No items available currently.')
+                          else
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 0.75,
+                                crossAxisSpacing: 16.0,
+                                mainAxisSpacing: 16.0,
+                              ),
+                              itemCount: items.length,
+                              itemBuilder: (context, index) => _buildItemCard(context, items[index]),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            
-            if (items.isEmpty)
-              _buildEmptyState(context)
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: _buildItemsGrid(context, items),
-              ),
-              
-            const SizedBox(height: 48),
-          ],
-        ),
-      ),
-      floatingActionButton: store.isAcceptingOrders && items.isNotEmpty
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.of(context).pushNamed('/store/order', arguments: store.id);
-              },
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.shopping_cart),
-              label: const Text('PLACE ORDER', style: TextStyle(fontWeight: FontWeight.bold)),
-            )
-          : null,
+            );
+          }
+        );
+      }
     );
   }
 
   Widget _buildHero(BuildContext context) {
     return Container(
       height: 200,
-      width: double.infinity,
-      color: AppTheme.primary.withValues(alpha: 0.1),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/team-store-background-v2.png',
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(color: AppTheme.primary.withValues(alpha: 0.2)),
-          ),
-          Container(color: Colors.black.withValues(alpha: 0.4)),
-        ],
+      decoration: const BoxDecoration(
+        color: AppTheme.primary,
+      ),
+      child: Center(
+        child: Text('TEAM STORE', style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  Widget _buildHeaderInfo(BuildContext context, dynamic store, dynamic coach) {
+  Widget _buildStoreInfo(BuildContext context, TeamStore store, User? coach) {
     return GlassPanel(
-      padding: const EdgeInsets.all(24),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Logo placeholder
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.borderSubtle),
-            ),
-            child: const Icon(Icons.shield, size: 40, color: AppTheme.borderSubtle),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceLight,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.borderSubtle),
-                  ),
-                  child: Text(
-                    (coach.sport ?? 'Team Athletics').toUpperCase(),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  store.name.toUpperCase(),
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Official Custom Apparel Storefront • Coach ${coach.fullName}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-          if (store.orderDeadline != null)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceLight,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.borderSubtle),
-              ),
-              child: Column(
-                children: [
-                  Text('ORDER DEADLINE', style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${store.orderDeadline!.month}/${store.orderDeadline!.day}/${store.orderDeadline!.year}',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStoreClosedAlert(BuildContext context, dynamic store) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.warning.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppTheme.warning),
-        ),
-        child: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.warning_amber_rounded, color: AppTheme.warning),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'This store is currently not accepting orders.',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppTheme.warning, fontWeight: FontWeight.bold),
-              ),
-            ),
+            Text(store.name, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8.0),
+            if (coach != null) Text('Coach: ${coach.fullName}'),
+            const SizedBox(height: 8.0),
+            Text('Closes: ${store.orderDeadline.toString().split(' ')[0]}', style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildItemsGrid(BuildContext context, List<StoreItem> items) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 300,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 24,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return _buildItemCard(context, item);
-      },
-    );
-  }
-
   Widget _buildItemCard(BuildContext context, StoreItem item) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceLight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderSubtle),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Container(
-              color: AppTheme.primary.withValues(alpha: 0.05),
-              width: double.infinity,
-              child: const Center(
-                child: Icon(Icons.image, size: 64, color: AppTheme.borderSubtle),
+    return GestureDetector(
+      onTap: () {
+        // Navigate to item detail (not implemented in this stub)
+      },
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Container(
+                color: Colors.grey[200],
+                child: const Icon(Icons.checkroom, size: 48, color: Colors.grey),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (item.isPackage)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.secondary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppTheme.secondary.withValues(alpha: 0.2)),
-                    ),
-                    child: Text(
-                      'PACKAGE',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppTheme.secondary, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                Text(
-                  item.name,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '\$${item.retailPrice.toStringAsFixed(2)}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppTheme.success, fontWeight: FontWeight.bold),
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('\$${item.retailPrice.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(40),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceLight,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.borderSubtle, style: BorderStyle.solid),
-        ),
-        child: Text(
-          'NO ITEMS AVAILABLE IN THIS STORE.',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.textMuted, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
+          ],
         ),
       ),
     );

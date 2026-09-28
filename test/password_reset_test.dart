@@ -7,8 +7,8 @@ import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:commission_apparel_flutter/app/routes.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
-import 'package:commission_apparel_flutter/data/dummy_users.dart';
-import 'package:commission_apparel_flutter/data/dummy_logs.dart';
+import 'fixtures/dummy_users.dart';
+import 'fixtures/dummy_logs.dart';
 import 'package:commission_apparel_flutter/screens/auth/forgot_password_screen.dart';
 
 void main() {

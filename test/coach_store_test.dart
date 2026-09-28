@@ -7,7 +7,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:commission_apparel_flutter/app/theme.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
-import 'package:commission_apparel_flutter/data/dummy_users.dart';
+import 'fixtures/dummy_users.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/screens/coach/coach_dashboard_screen.dart';
 

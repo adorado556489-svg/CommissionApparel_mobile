@@ -1,14 +1,12 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../app/theme.dart';
-import '../../data/dummy_content.dart';
-import '../../models/site_setting.dart';
-import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../../app/theme.dart';
 import '../../models/landing_collection.dart';
-import '../../services/catalog_service.dart';
+import '../../models/site_setting.dart';
+import '../../models/testimonial.dart';
+import '../../services/content_service.dart';
 import '../../widgets/app_scaffold.dart';
-import '../../widgets/glass_panel.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,22 +16,26 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<LandingCollection> _collections = [];
-  bool _isLoading = true;
+  List<SiteSetting> dummySiteSettings = [];
+  List<Testimonial> dummyTestimonials = [];
+  List<LandingCollection> dummyLandingCollections = [];
 
   @override
   void initState() {
     super.initState();
-    _loadCollections();
+    _loadData();
   }
 
-  Future<void> _loadCollections() async {
+  void _loadData() async {
     final firestore = context.read<FirebaseFirestore>();
-    final collections = await CatalogService.getAllLandingCollections(firestore);
+    final settings = await ContentService.getAllSiteSettings(firestore);
+    final testimonials = await ContentService.getAllTestimonials(firestore);
+    final collections = await ContentService.getAllLandingCollections(firestore);
     if (mounted) {
       setState(() {
-        _collections = collections;
-        _isLoading = false;
+        dummySiteSettings = settings;
+        dummyTestimonials = testimonials;
+        dummyLandingCollections = collections;
       });
     }
   }
@@ -41,18 +43,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'Commission Apparel',
+      title: 'Home',
       currentNavIndex: 0,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildHero(context),
-            const SizedBox(height: 32),
-            _buildCollections(context),
-            const SizedBox(height: 32),
-            _buildFeatures(context),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            _buildProducts(context),
+            const SizedBox(height: 24),
             _buildTestimonials(context),
             const SizedBox(height: 48),
           ],
@@ -66,205 +66,94 @@ class _HomeScreenState extends State<HomeScreen> {
     final subtitle = SiteSetting.getValue(dummySiteSettings, 'hero_subtitle') ?? 'Premium quality custom jerseys and team gear.';
     final ctaText = SiteSetting.getValue(dummySiteSettings, 'hero_cta_text') ?? 'Request A Quote';
     final mediaPath = SiteSetting.getValue(dummySiteSettings, 'hero_media_path');
+    final mediaType = SiteSetting.getValue(dummySiteSettings, 'hero_media_type');
 
     Widget bgImage;
-    if (mediaPath != null && mediaPath.isNotEmpty && !mediaPath.startsWith('assets/')) {
-      bgImage = Image.file(
-        File(mediaPath), // Use dart:io indirectly or import dart:io
-        height: 400,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          height: 400,
-          width: double.infinity,
-          color: Colors.grey,
-        ),
-      );
+    if (mediaPath != null && mediaType == 'image') {
+      bgImage = Image.network(mediaPath, fit: BoxFit.cover);
     } else {
-      bgImage = Image.asset(
-        mediaPath ?? 'assets/images/hero-banner.jpeg',
-        height: 400,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          height: 400,
-          width: double.infinity,
-          color: Colors.grey,
+      bgImage = Container(
+        color: AppTheme.primary,
+        child: Center(
+          child: Icon(Icons.sports_basketball, size: 100, color: Colors.white.withValues(alpha: 0.2)),
         ),
       );
     }
 
-    return Stack(
-      children: [
-        // Background Image
-        bgImage,
-        // Overlay
-        Container(
-          height: 400,
-          color: Colors.black.withOpacity(0.5),
-        ),
-        // Content
-        Positioned.fill(
-          child: Padding(
+    return Container(
+      height: 300,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          bgImage,
+          Container(color: Colors.black.withValues(alpha: 0.4)),
+          Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: Colors.white,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 16,
-                      ),
-                ),
-                const SizedBox(height: 32),
+                Text(title, style: Theme.of(context).textTheme.displaySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(subtitle, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70)),
+                const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () => Navigator.of(context).pushNamed('/quote'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.secondary,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.secondary),
+                  onPressed: () => Navigator.pushNamed(context, '/quote'),
                   child: Text(ctaText),
                 ),
               ],
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCollections(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'VIEW OUR CUSTOM COLLECTIONS',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Stand out with fully custom designs crafted to capture the essence of your program.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          // We will use a horizontal list view for collections
-          SizedBox(
-            height: 180,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _collections.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 16),
-              itemBuilder: (context, index) {
-                final collection = _collections[index];
-                return _buildCollectionCard(context, collection);
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: OutlinedButton(
-              onPressed: () => Navigator.of(context).pushNamed('/catalog'),
-              child: const Text('View Design Catalog'),
-            ),
-          ),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildCollectionCard(BuildContext context, LandingCollection collection) {
-    return Container(
-      width: 280,
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceLight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderSubtle),
-      ),
-      padding: const EdgeInsets.all(16),
+  Widget _buildProducts(BuildContext context) {
+    if (dummyLandingCollections.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            collection.tabName,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppTheme.accent, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            collection.title,
-            style: Theme.of(context).textTheme.titleMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Text(
-              collection.description ?? '',
-              style: Theme.of(context).textTheme.bodySmall,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+          Text('Featured Collections', style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.8,
             ),
+            itemCount: dummyLandingCollections.length,
+            itemBuilder: (context, index) {
+              final col = dummyLandingCollections[index];
+              return Card(
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: col.imagePath != null
+                          ? Image.network(col.imagePath!, fit: BoxFit.cover)
+                          : Container(color: Colors.grey[200], child: const Icon(Icons.image, size: 48, color: Colors.grey)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(col.tabName, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFeatures(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GlassPanel(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'WHY CHOOSE US?',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildFeatureRow(context, Icons.design_services, 'Fully Custom Designs', 'Work with our team to bring your exact vision to life.'),
-            const SizedBox(height: 12),
-            _buildFeatureRow(context, Icons.storefront, 'Free Team Stores', 'We set up your ordering portal at no cost to your program.'),
-            const SizedBox(height: 12),
-            _buildFeatureRow(context, Icons.local_shipping, 'Fast Turnaround', 'Get your gear quickly when you need it for the season.'),
-            const SizedBox(height: 12),
-            _buildFeatureRow(context, Icons.attach_money, 'Fundraising Built-in', 'Set your own retail markup and keep the profit.'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeatureRow(BuildContext context, IconData icon, String title, String desc) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: AppTheme.primary, size: 28),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(desc, style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -272,16 +161,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (dummyTestimonials.isEmpty) return const SizedBox.shrink();
     
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'WHAT COACHES SAY',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
+          Text('What Coaches Say', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 16),
-          SizedBox(
+          Container(
             height: 220,
             child: PageView.builder(
               itemCount: dummyTestimonials.length,
@@ -290,41 +176,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Card(
                   margin: const EdgeInsets.only(right: 8, bottom: 8),
                   child: Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16.0),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.format_quote, color: AppTheme.borderSubtle, size: 40),
+                        const Icon(Icons.format_quote, color: AppTheme.accent, size: 32),
                         const SizedBox(height: 8),
                         Expanded(
                           child: Text(
                             '"${testimonial.content}"',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
+                            style: const TextStyle(fontStyle: FontStyle.italic),
                             textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 4,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          testimonial.clientName,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(color: AppTheme.primary),
-                        ),
-                        if (testimonial.organization != null)
-                          Text(
-                            testimonial.organization!,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
+                        const SizedBox(height: 8),
+                        Text('- ${testimonial.clientName}, ${testimonial.organization}', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
                 );
               },
             ),
-          ),
+          )
         ],
       ),
     );
   }
 }
-

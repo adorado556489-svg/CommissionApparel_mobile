@@ -3,7 +3,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 
 import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
-import 'package:commission_apparel_flutter/data/dummy_users.dart';
+import 'fixtures/dummy_users.dart';
 
 void main() {
   group('Phase 3 — Authentication & Role-Based Navigation', () {

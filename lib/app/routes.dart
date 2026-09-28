@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart';
@@ -80,7 +80,7 @@ class AppRoutes {
       case register: return const RegisterScreen();
       case forgotPassword: return const ForgotPasswordScreen();
       case catalog: return const CatalogScreen();
-      case catalogCollection: return CatalogCollectionScreen(categoryId: settings.arguments as String);
+      case catalogCollection: return CatalogCollectionScreen(collectionId: settings.arguments as String);
       case storeSearch: return const StoreSearchScreen();
       case storeDetail: return StoreDetailScreen(storeId: settings.arguments as String);
       case storeOrder: return ParentOrderFormScreen(storeId: settings.arguments as String);

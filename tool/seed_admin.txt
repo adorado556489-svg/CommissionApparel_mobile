@@ -1,0 +1,5 @@
+﻿import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+// Note: This script assumes you run it in a Flutter environment or use the admin SDK. 
+// For Flutter, you can run this as a one-off in main.dart, or just document the process.

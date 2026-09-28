@@ -91,7 +91,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<String?> register({required String email, required String password, required String firstName, required String lastName, String? organization}) async {
+  Future<String?> register({required String email, required String password, required String firstName, required String lastName, String? organization, String? phone, String? sport}) async {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       if (cred.user != null) {

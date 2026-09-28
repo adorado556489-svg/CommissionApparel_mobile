@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:commission_apparel_flutter/app/theme.dart';
-import 'package:commission_apparel_flutter/data/dummy_stores.dart';
+import 'fixtures/dummy_stores.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/screens/admin/admin_dashboard_screen.dart';
 import 'package:commission_apparel_flutter/screens/admin/admin_store_edit_screen.dart';
