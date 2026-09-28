@@ -19,6 +19,28 @@ class OrderService {
     throw e;
   }
 
+    static Future<List<ParentOrder>> getOrdersForUser(FirebaseFirestore firestore, String userId) async {
+    try {
+      final qs = await firestore
+          .collection(_collectionPath)
+          .where('userId', isEqualTo: userId)
+          .get();
+      return qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList();
+    } catch (e) {
+      _handleError(e, 'OrderService.getOrdersForUser');
+      return [];
+    }
+  }
+
+    static Stream<List<ParentOrder>> getUnbatchedOrdersForStoreStream(FirebaseFirestore firestore, String storeId) {
+    return firestore
+        .collection(_collectionPath)
+        .where('teamStoreId', isEqualTo: storeId)
+        .where('batchId', isNull: true)
+        .snapshots()
+        .map((qs) => qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList());
+  }
+
   static Future<List<ParentOrder>> getAllOrders(FirebaseFirestore firestore) async {
     try {
       final qs = await firestore.collection(_collectionPath).get();

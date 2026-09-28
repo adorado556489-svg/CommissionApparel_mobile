@@ -57,6 +57,14 @@ class StoreService {
     try { return dummyTeamStores.firstWhere((s) => s.id == storeId); } catch (_) { return null; }
   }
 
+    static Stream<List<TeamStore>> getPendingStoresStream(FirebaseFirestore firestore) {
+    return firestore
+        .collection(FirestorePaths.teamStores)
+        .where('status', isEqualTo: 'Pending')
+        .snapshots()
+        .map((qs) => qs.docs.map((d) => TeamStore.fromFirestore(d)).toList());
+  }
+
   static Future<List<TeamStore>> getPendingStores(FirebaseFirestore firestore) async {
     try {
       final qs = await firestore

@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -325,8 +325,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: ElevatedButton(
-              onPressed: () {
-                final error = await OrderService.finalizeDirectOrders(context.read<FirebaseFirestore>(), user);
+              onPressed: () async { final error = await OrderService.finalizeDirectOrders(context.read<FirebaseFirestore>(), user);
                 if (error != null) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
                 } else {
@@ -366,8 +365,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
                       TextButton.icon(
                         icon: const Icon(Icons.archive),
                         label: const Text('Archive Batch'),
-                        onPressed: () {
-                          await OrderService.archiveDirectOrderBatch(context.read<FirebaseFirestore>(), user, e.key);
+                        onPressed: () async { await OrderService.archiveDirectOrderBatch(context.read<FirebaseFirestore>(), user, e.key);
                           setState(() {});
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Batch has been archived successfully.'))
@@ -707,3 +705,4 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     );
   }
 }
+
