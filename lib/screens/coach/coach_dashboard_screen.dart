@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -155,7 +155,11 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     final user = context.read<AuthService>().currentUser!;
     
     final batchId = 'batch-${DateTime.now().millisecondsSinceEpoch}';
-    await OrderService.submitStoreOrdersToAdmin(firestore, user, _activeStore!.id, batchId);
+    final error = await OrderService.submitStoreOrdersToAdmin(firestore, user, _activeStore!.id, batchId);
+    if (error != null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
     
     final updatedStore = _activeStore!.copyWith(
       status: 'submitted_to_admin',

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -91,7 +91,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<String?> register(String email, String password, {required String firstName, required String lastName, String? organization}) async {
+  Future<String?> register({required String email, required String password, required String firstName, required String lastName, String? organization}) async {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       if (cred.user != null) {
@@ -170,17 +170,26 @@ class AuthService extends ChangeNotifier {
     return null;
   }
 
-  Future<void> resetPassword(String email) async {
+    Future<String?> sendPasswordReset(String email, String phone, String organization) async {
     try {
-      await _auth.sendPasswordResetEmail(email: email);
-    } catch (e) {
-      debugPrint('Password reset error: $e');
-      rethrow;
-    }
-  }
+      final qs = await _firestore.collection('users').where('email', isEqualTo: email).limit(1).get();
+      if (qs.docs.isEmpty) {
+        return 'No account found with this email.';
+      }
+      final userData = qs.docs.first.data();
+      
+      final dbPhone = userData['phone'] as String?;
+      final dbOrg = userData['organization'] as String?;
+      
+      if (dbPhone != phone || dbOrg != organization) {
+        return 'Identity verification failed. Information does not match our records.';
+      }
 
-  Future<bool> verifyResetIdentity(String email, String answer) async {
-    return true;
+      await _auth.sendPasswordResetEmail(email: email);
+      return null;
+    } catch (e) {
+      return 'Failed to process password reset.';
+    }
   }
 
   Future<void> completePasswordReset(String newPassword) async {

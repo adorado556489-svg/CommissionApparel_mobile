@@ -91,7 +91,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
   Widget build(BuildContext context) {
     return FutureBuilder<List<dynamic>>(
       future: Future.wait([
-        OrderService.getAllOrders(context.read<FirebaseFirestore>()),
+        OrderService.getSubmittedBatchedOrders(context.read<FirebaseFirestore>()),
         StoreService.getPendingStores(context.read<FirebaseFirestore>()),
         StoreService.getCampaignStores(context.read<FirebaseFirestore>()),
       ]),
