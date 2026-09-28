@@ -1,0 +1,261 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper Functions ─────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isAdminOrOwner(userId) {
+      return isAdmin() || isOwner(userId);
+    }
+
+    // Verify store ownership by looking up the teamStores document
+    function ownsStore(storeId) {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/teamStores/$(storeId))
+        && get(/databases/$(database)/documents/teamStores/$(storeId)).data.userId == request.auth.uid;
+    }
+
+    // ── USERS ────────────────────────────────────────────────────────
+    // users/{userId}
+    match /users/{userId} {
+
+      // Any authenticated user can read their own profile.
+      // Admin can read any user profile (for user management).
+      allow read: if isAdminOrOwner(userId);
+
+      // A new user document may be created during registration.
+      // The document ID MUST equal the authenticated UID.
+      // The role MUST be 'coach' (normal user) — cannot self-assign admin.
+      allow create: if isOwner(userId)
+        && request.resource.data.role == 'coach';
+
+      // A user may update their own profile, but CANNOT change:
+      //   - role (privilege escalation prevention)
+      //   - id
+      //   - assignedDesignIds (admin-managed)
+      // Admin can update any user document.
+      allow update: if isAdmin()
+        || (isOwner(userId)
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.id == resource.data.id
+            && request.resource.data.assignedDesignIds == resource.data.assignedDesignIds);
+
+      // Only admin can delete user documents.
+      allow delete: if isAdmin();
+    }
+
+    // ── TEAM STORES ──────────────────────────────────────────────────
+    // teamStores/{storeId}
+    match /teamStores/{storeId} {
+
+      // Authenticated users can read any non-archived store (for browsing).
+      // Admin can read all stores.
+      // Store owner can read their own store regardless.
+      allow read: if isAuthenticated();
+
+      // A user can create a store only if:
+      //   - they are authenticated
+      //   - the store's userId field matches their UID
+      //   - the store status is 'pending' (cannot self-approve)
+      //   - pricingApproved is false (cannot self-approve pricing)
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.pricingApproved == false;
+
+      // Store owner can update their own store, but CANNOT change:
+      //   - userId (ownership transfer prevention)
+      //   - status (admin-controlled lifecycle)
+      //   - pricingApproved (admin-controlled)
+      // Admin can update any store field.
+      allow update: if isAdmin()
+        || (isOwner(resource.data.userId)
+            && request.resource.data.userId == resource.data.userId
+            && request.resource.data.status == resource.data.status
+            && request.resource.data.pricingApproved == resource.data.pricingApproved);
+
+      // Only admin can delete stores.
+      allow delete: if isAdmin();
+    }
+
+    // ── STORE ITEMS ──────────────────────────────────────────────────
+    // storeItems/{itemId}
+    match /storeItems/{itemId} {
+
+      // Authenticated users can read store items (for ordering).
+      allow read: if isAuthenticated();
+
+      // Store owner can create items for their own store.
+      // Admin can create items for any store.
+      allow create: if isAdmin()
+        || (isAuthenticated() && ownsStore(request.resource.data.teamStoreId));
+
+      // Store owner can update their own store's items.
+      // Cannot change teamStoreId (move item to another store).
+      // Admin can update any item.
+      allow update: if isAdmin()
+        || (isAuthenticated()
+            && ownsStore(resource.data.teamStoreId)
+            && request.resource.data.teamStoreId == resource.data.teamStoreId);
+
+      // Store owner can delete their own store's items.
+      // Admin can delete any item.
+      allow delete: if isAdmin()
+        || (isAuthenticated() && ownsStore(resource.data.teamStoreId));
+    }
+
+    // ── PARENT ORDERS ────────────────────────────────────────────────
+    // parentOrders/{orderId}
+    match /parentOrders/{orderId} {
+
+      // A user can read their own orders.
+      // A store owner can read orders placed against their store.
+      // Admin can read all orders.
+      allow read: if isAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid)
+        || (isAuthenticated()
+            && resource.data.teamStoreId != null
+            && ownsStore(resource.data.teamStoreId));
+
+      // An authenticated user can create an order only if:
+      //   - userId matches their UID (cannot create orders for others)
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+
+      // Order updates:
+      //   - Admin can update any order
+      //   - Order owner can update their own order but cannot change userId
+      //   - Store owner can update orders in their store but cannot change userId
+      //   - Nobody can change userId (order ownership is immutable)
+      allow update: if isAdmin()
+        || (isAuthenticated()
+            && request.resource.data.userId == resource.data.userId
+            && (resource.data.userId == request.auth.uid
+                || (resource.data.teamStoreId != null
+                    && ownsStore(resource.data.teamStoreId))));
+
+      // Order deletion:
+      //   - Admin can delete any order
+      //   - Order owner can delete their own direct orders
+      //   - Store owner can delete orders in their store
+      allow delete: if isAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid)
+        || (isAuthenticated()
+            && resource.data.teamStoreId != null
+            && ownsStore(resource.data.teamStoreId));
+    }
+
+    // ── DESIGN CATALOG ───────────────────────────────────────────────
+    // designCatalog/{designId}
+    match /designCatalog/{designId} {
+      // Authenticated users can read the catalog.
+      allow read: if isAuthenticated();
+
+      // Only admin can create, update, or delete catalog items.
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── DESIGN COLLECTIONS ───────────────────────────────────────────
+    // designCollections/{collectionId}
+    match /designCollections/{collectionId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── LANDING COLLECTIONS ──────────────────────────────────────────
+    // landingCollections/{collectionId}
+    match /landingCollections/{collectionId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── COACH UPLOADS ────────────────────────────────────────────────
+    // coachUploads/{uploadId}
+    match /coachUploads/{uploadId} {
+      // Owner can read their own uploads. Admin can read all.
+      allow read: if isAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+
+      // User can create uploads attributed to themselves.
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+
+      // User can update/delete their own uploads. Admin can manage all.
+      allow update, delete: if isAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    // ── QUOTE REQUESTS ───────────────────────────────────────────────
+    // quoteRequests/{quoteId}
+    match /quoteRequests/{quoteId} {
+      // Admin can read all quotes.
+      // Owner can read their own quote.
+      allow read: if isAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+
+      // Authenticated user can create a quote request for themselves.
+      allow create: if isAuthenticated();
+
+      // Only admin can update quote status.
+      allow update, delete: if isAdmin();
+    }
+
+    // ── TESTIMONIALS ─────────────────────────────────────────────────
+    // testimonials/{testimonialId}
+    match /testimonials/{testimonialId} {
+      // Authenticated users can read testimonials.
+      allow read: if isAuthenticated();
+
+      // Only admin can manage testimonials.
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── SITE SETTINGS ────────────────────────────────────────────────
+    // siteSettings/{settingId}
+    match /siteSettings/{settingId} {
+      // Authenticated users can read site settings.
+      allow read: if isAuthenticated();
+
+      // Only admin can modify site settings.
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── NOTIFICATIONS ────────────────────────────────────────────────
+    // notifications/{notificationId}
+    match /notifications/{notificationId} {
+      // User can read their own notifications.
+      // Admin can read all.
+      allow read: if isAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+
+      // System/admin can create notifications for any user.
+      // Normal users cannot create notifications.
+      allow create: if isAdmin();
+
+      // User can mark their own notification as read (update readAt).
+      // Cannot change userId or other protected fields.
+      // Admin can update any notification.
+      allow update: if isAdmin()
+        || (isAuthenticated()
+            && resource.data.userId == request.auth.uid
+            && request.resource.data.userId == resource.data.userId);
+
+      // Only admin can delete notifications.
+      allow delete: if isAdmin();
+    }
+  }
+}

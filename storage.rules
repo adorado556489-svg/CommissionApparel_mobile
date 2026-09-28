@@ -1,0 +1,93 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helper Functions ─────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Validate uploaded file: must be an image, max 10MB
+    function isValidImage() {
+      return request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── USER LOGOS ───────────────────────────────────────────────────
+    // /users/{userId}/...
+    match /users/{userId}/{allPaths=**} {
+      // Owner can read their own files. Admin can read any.
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+
+      // Owner can upload to their own path with valid image.
+      allow write: if isAuthenticated()
+        && request.auth.uid == userId
+        && isValidImage();
+
+      // Admin can write to any user path.
+      allow write: if isAdmin();
+    }
+
+    // ── STORE COVERS ─────────────────────────────────────────────────
+    // /stores/{storeId}/...
+    match /stores/{storeId}/{allPaths=**} {
+      // Any authenticated user can read store images (for browsing).
+      allow read: if isAuthenticated();
+
+      // Store owner can upload covers. Verified via Firestore lookup.
+      allow write: if isAuthenticated()
+        && firestore.exists(/databases/(default)/documents/teamStores/$(storeId))
+        && firestore.get(/databases/(default)/documents/teamStores/$(storeId)).data.userId == request.auth.uid
+        && isValidImage();
+
+      // Admin can write to any store path.
+      allow write: if isAdmin();
+    }
+
+    // ── CATALOG MEDIA ────────────────────────────────────────────────
+    // /catalog/{designId}/...
+    match /catalog/{designId}/{allPaths=**} {
+      // Authenticated users can read catalog images.
+      allow read: if isAuthenticated();
+
+      // Only admin can upload/modify/delete catalog media.
+      allow write: if isAdmin();
+    }
+
+    // ── LANDING MEDIA ────────────────────────────────────────────────
+    // /landing/{collectionId}/...
+    match /landing/{collectionId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── TESTIMONIAL MEDIA ────────────────────────────────────────────
+    // /testimonials/{testimonialId}/...
+    match /testimonials/{testimonialId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── COACH UPLOADS ────────────────────────────────────────────────
+    // /uploads/{userId}/{uploadId}
+    match /uploads/{userId}/{allPaths=**} {
+      // Owner can read their own uploads.
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+
+      // Owner can upload to their own path with valid image.
+      allow write: if isAuthenticated()
+        && request.auth.uid == userId
+        && isValidImage();
+
+      // Admin can manage all uploads.
+      allow write: if isAdmin();
+    }
+  }
+}
