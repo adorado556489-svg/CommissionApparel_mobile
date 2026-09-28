@@ -259,9 +259,15 @@ class OrderService {
     if (existingIndex == -1) return 'Order not found';
     final existingOrder = allOrders[existingIndex];
 
-    if (existingOrder.teamStoreId == null && existingOrder.userId != currentUser.id && currentUser.role != UserRole.admin) {
-      return 'Unauthorized';
+        if (currentUser.role != UserRole.admin) {
+      if (existingOrder.teamStoreId != null) {
+        final ownsStore = await _isAuthorizedForStore(firestore, currentUser, existingOrder.teamStoreId!);
+        if (!ownsStore && existingOrder.userId != currentUser.id) return 'Unauthorized';
+      } else {
+        if (existingOrder.userId != currentUser.id) return 'Unauthorized';
+      }
     }
+
 
     final newOrder = updatedOrder.copyWith(
       isEdited: true,
@@ -285,4 +291,5 @@ class OrderService {
     return null;
   }
 }
+
 
