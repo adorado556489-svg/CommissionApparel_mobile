@@ -62,6 +62,7 @@ class AuthService extends ChangeNotifier {
       final doc = await _firestore.collection(FirestorePaths.users).doc(uid).get();
       if (doc.exists) {
         _currentUser = User.fromFirestore(doc);
+            print('AUTH: User set to ${_currentUser?.id}');
       } else {
         _currentUser = null;
       }

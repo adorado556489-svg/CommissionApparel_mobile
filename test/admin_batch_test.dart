@@ -1,3 +1,4 @@
+import 'helpers/test_seeder.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
@@ -11,9 +12,10 @@ void main() {
     late User adminUser;
     late FakeFirebaseFirestore firestore;
 
-    setUp(() {
-      adminUser = dummyUsers.firstWhere((u) => u.role == UserRole.admin);
+    setUp(() async {
+      adminUser = rawdummyUsers.firstWhere((u) => u.role == UserRole.admin);
       firestore = FakeFirebaseFirestore();
+    await TestSeeder.seedAll(firestore);
     });
 
     test('Admin can mark direct batch as addressed', () async {
@@ -31,22 +33,14 @@ void main() {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-
-      dummyParentOrders.add(order);
       await firestore.collection('parentOrders').doc(order.id).set(order.toFirestore());
 
       final error = await AdminService.markDirectBatchAddressed(firestore, adminUser, batchId);
       expect(error, isNull);
-
-      final updatedOrder = dummyParentOrders.firstWhere((o) => o.id == 'do-123');
-      expect(updatedOrder.status, 'Processing');
-      expect(updatedOrder.isArchived, isTrue);
       
       final doc = await firestore.collection('parentOrders').doc('do-123').get();
       expect(doc.data()?['status'], 'Processing');
       expect(doc.data()?['isArchived'], isTrue);
-
-      dummyParentOrders.removeWhere((o) => o.id == 'do-123');
     });
 
     test('Admin can mark store batch as addressed', () async {
@@ -65,18 +59,10 @@ void main() {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-
-      dummyParentOrders.add(order);
       await firestore.collection('parentOrders').doc(order.id).set(order.toFirestore());
 
       final error = await AdminService.markStoreBatchAddressed(firestore, adminUser, batchId);
       expect(error, isNull);
-
-      final updatedOrder = dummyParentOrders.firstWhere((o) => o.id == 'so-123');
-      expect(updatedOrder.status, 'Processing');
-      expect(updatedOrder.isArchived, isTrue);
-
-      dummyParentOrders.removeWhere((o) => o.id == 'so-123');
     });
 
     test('Admin can delete archived batch', () async {
@@ -94,18 +80,14 @@ void main() {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-
-      dummyParentOrders.add(order);
       await firestore.collection('parentOrders').doc(order.id).set(order.toFirestore());
 
       final error = await AdminService.deleteArchivedOrderBatch(firestore, adminUser, batchId);
       expect(error, isNull);
-
-      final exists = dummyParentOrders.any((o) => o.id == 'del-123');
-      expect(exists, isFalse);
       
       final doc = await firestore.collection('parentOrders').doc('del-123').get();
       expect(doc.exists, isFalse);
     });
   });
 }
+

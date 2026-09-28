@@ -1,3 +1,4 @@
+import 'helpers/test_seeder.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -12,8 +13,9 @@ import 'package:commission_apparel_flutter/services/content_service.dart';
 void main() {
   late FirebaseFirestore firestore;
 
-  setUp(() {
+  setUp(() async {
     firestore = FakeFirebaseFirestore();
+    await TestSeeder.seedAll(firestore);
   });
 
   group('Phase 4 - Transactions', () {
@@ -57,7 +59,7 @@ void main() {
     test('4. Direct order contains teamStoreId == null', () async {
       await OrderService.submitDirectOrder(
         firestore,
-        currentUser: normalUser,
+        normalUser,
         orderType: 'direct',
         items: [orderItem],
       );

@@ -1,3 +1,6 @@
+import 'helpers/test_seeder.dart';
+
+
 
 import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
@@ -13,11 +16,12 @@ import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/screens/admin/admin_dashboard_screen.dart';
 
 
-Widget createTestApp(Widget home, AuthService auth) {
+Widget createTestApp(Widget home, AuthService auth, [FirebaseFirestore? fs]) {
+  fs ??= FakeFirebaseFirestore();
   return MultiProvider(
     providers: [
       ChangeNotifierProvider.value(value: auth),
-      Provider<FirebaseFirestore>.value(value: FakeFirebaseFirestore()),
+      Provider<FirebaseFirestore>.value(value: fs!),
     ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
@@ -27,9 +31,13 @@ Widget createTestApp(Widget home, AuthService auth) {
 }
 
 void main() {
+  late FakeFirebaseFirestore firestore;
   late AuthService auth;
 
-  setUp(() {
+  setUp(() async {
+    firestore = FakeFirebaseFirestore();
+    await TestSeeder.seedAll(firestore);
+        
     auth = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
   });
 

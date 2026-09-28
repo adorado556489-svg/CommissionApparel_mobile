@@ -1,0 +1,3 @@
+  setUp(() {
+    auth = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
+  });

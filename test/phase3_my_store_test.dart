@@ -1,3 +1,4 @@
+import 'helpers/test_seeder.dart';
 import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +15,7 @@ import 'package:commission_apparel_flutter/services/store_service.dart';
 void main() {
   late FirebaseFirestore firestore;
 
-  setUp(() {
+  setUp(() async {
     firestore = FakeFirebaseFirestore();
   });
 
@@ -78,4 +79,6 @@ void main() {
     });
   });
 }
+
+
 

@@ -1,4 +1,4 @@
-import 'package:commission_apparel_flutter/services/dummy_fallbacks.dart' as f;
+
 import 'package:commission_apparel_flutter/models/notification_item.dart';
 
 /// Dummy notifications for testing the notification UI across roles.
@@ -110,12 +110,11 @@ final List<NotificationItem> rawdummyNotifications = [
 
 /// Notifications for a specific user.
 List<NotificationItem> notificationsForUser(String userId) =>
-    dummyNotifications.where((n) => n.userId == userId).toList();
+    rawdummyNotifications.where((n) => n.userId == userId).toList();
 
 /// Unread notifications for a specific user.
 List<NotificationItem> unreadNotificationsForUser(String userId) =>
-    dummyNotifications
+    rawdummyNotifications
         .where((n) => n.userId == userId && n.isUnread)
         .toList();
 
-List<NotificationItem> get dummyNotifications => f.dummyNotifications;

@@ -135,8 +135,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
   }
 
   Future<void> _updateItemMarkup(StoreItem item, double retailPrice) async {
-    final design = _assignedDesigns.firstWhere((d) => d.id == item.designCatalogId);
-    if (retailPrice < design.wholesalePrice) {
+    if (retailPrice < item.wholesalePrice) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Retail price cannot be less than wholesale price.')));
       return;
     }
@@ -147,7 +146,8 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
 
   Future<void> _submitMasterOrder() async {
     if (_activeStore == null) return;
-    if (_unbatchedOrders.isEmpty) {
+    print('SUBMIT MASTER ORDER: length=${_unbatchedOrders.length}');
+      if (_unbatchedOrders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot submit an empty roster.')));
       return;
     }

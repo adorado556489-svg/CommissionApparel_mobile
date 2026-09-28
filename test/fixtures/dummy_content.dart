@@ -1,4 +1,4 @@
-import 'package:commission_apparel_flutter/services/dummy_fallbacks.dart' as f;
+
 import 'package:commission_apparel_flutter/models/landing_collection.dart';
 import 'package:commission_apparel_flutter/models/testimonial.dart';
 import 'package:commission_apparel_flutter/models/site_setting.dart';
@@ -145,8 +145,5 @@ final List<SiteSetting> rawdummySiteSettings = [
   ),
 ];
 
-List<LandingCollection> get dummyLandingCollections => f.dummyLandingCollections;
 
-List<Testimonial> get dummyTestimonials => f.dummyTestimonials;
 
-List<SiteSetting> get dummySiteSettings => f.dummySiteSettings;

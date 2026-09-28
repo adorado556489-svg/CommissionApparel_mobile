@@ -20,12 +20,13 @@ void main() {
       await TestSeeder.seedAdminEnvironment(firestore);
       await TestSeeder.seedCoachStoreEnvironment(firestore);
       await TestSeeder.seedParentEnvironment(firestore);
-      authService = AuthService(firestore: firestore, firebaseAuth: AutoSeedingMockFirebaseAuth(), googleSignIn: MockGoogleSignIn());
+      authService = AuthService(firestore: firestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-admin-1', email: 'admin@commissionapparel.com')), googleSignIn: MockGoogleSignIn());
     });
 
     test('Valid Admin login', () async {
       final error = await authService.login('admin@commissionapparel.com', 'password123');
       expect(error, isNull);
+      await Future.delayed(Duration(milliseconds: 100));
       expect(authService.isAuthenticated, isTrue);
       expect(authService.isAdmin, isTrue);
     });
@@ -39,6 +40,7 @@ void main() {
       );
       
       expect(error, isNull);
+      await Future.delayed(Duration(milliseconds: 100));
       expect(authService.isAuthenticated, isTrue);
       expect(authService.currentUser, isNotNull);
       expect(authService.currentUser!.role, UserRole.coach); // Default for normal user
@@ -50,3 +52,8 @@ void main() {
     });
   });
 }
+
+
+
+
+

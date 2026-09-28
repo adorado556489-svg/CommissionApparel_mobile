@@ -1,3 +1,4 @@
+import '../helpers/test_seeder.dart';
 /// Phase 5 — Firestore Security Rules Verification Tests
 ///
 /// These tests verify the security model defined in firestore.rules.
@@ -38,8 +39,9 @@ void main() {
     createdAt: DateTime.now(), updatedAt: DateTime.now(),
   );
 
-  setUp(() {
+  setUp(() async {
     firestore = FakeFirebaseFirestore();
+    await TestSeeder.seedAll(firestore);
   });
 
   group('1. User Document Security', () {
@@ -210,7 +212,7 @@ void main() {
 
     test('3f. Direct order has teamStoreId == null', () async {
       await OrderService.submitDirectOrder(
-        firestore, currentUser: normalUser, orderType: 'direct',
+        firestore, normalUser, orderType: 'direct',
         items: [OrderItemEntry(storeItemId: 'i1', name: 'Item', types: [], sizes: {}, quantity: 1, components: [])],
       );
       final orders = await OrderService.getOrdersForUser(firestore, normalUser.id);

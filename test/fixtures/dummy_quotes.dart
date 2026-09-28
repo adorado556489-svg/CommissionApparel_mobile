@@ -1,4 +1,4 @@
-import 'package:commission_apparel_flutter/services/dummy_fallbacks.dart' as f;
+
 import 'package:commission_apparel_flutter/models/quote_request.dart';
 
 /// Dummy quote requests for testing admin quote management.
@@ -60,4 +60,3 @@ final List<QuoteRequest> rawdummyQuoteRequests = [
   ),
 ];
 
-List<QuoteRequest> get dummyQuoteRequests => f.dummyQuoteRequests;

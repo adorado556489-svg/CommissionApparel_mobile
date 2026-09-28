@@ -1,4 +1,4 @@
-import 'package:commission_apparel_flutter/services/dummy_fallbacks.dart' as f;
+
 import 'package:commission_apparel_flutter/models/design_collection.dart';
 import 'package:commission_apparel_flutter/models/design_catalog.dart';
 
@@ -214,6 +214,4 @@ final List<DesignCatalog> rawdummyDesignCatalog = [
   ),
 ];
 
-List<DesignCollection> get dummyDesignCollections => f.dummyDesignCollections;
 
-List<DesignCatalog> get dummyDesignCatalog => f.dummyDesignCatalog;

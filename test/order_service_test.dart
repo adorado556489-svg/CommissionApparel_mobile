@@ -1,3 +1,4 @@
+import 'helpers/test_seeder.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -27,20 +28,20 @@ void main() {
     final coachUser = User(id: 'coach1', email: 'coach@example.com', password: 'password', firstName: 'C', lastName: 'C', role: UserRole.coach, status: 'active', createdAt: DateTime.now(), updatedAt: DateTime.now(), assignedDesignIds: []);
     final coachUser2 = User(id: 'coach2', email: 'coach2@example.com', password: 'password', firstName: 'C', lastName: 'C', role: UserRole.coach, status: 'active', createdAt: DateTime.now(), updatedAt: DateTime.now(), assignedDesignIds: []);
 
-    setUp(() {
+    setUp(() async {
       firestore = FakeFirebaseFirestore();
     });
 
     test('expected empty collection falls back gracefully', () async {
-      final orders = await OrderService.getAllOrders(firestore);
-      expect(orders.isNotEmpty, isTrue);
+      final orders = await OrderService.getOrdersForUser(firestore, "user-coach-1");
+      expect(orders.isEmpty, isTrue);
     });
 
     test('actual Firestore error propagates and throws', () async {
       final throwingFirestore = ThrowingMockFirestore();
       
       expect(
-        () async => await OrderService.getAllOrders(throwingFirestore),
+        () async => await OrderService.getOrdersForUser(throwingFirestore, "user-coach-1"),
         throwsA(isA<FirebaseException>()),
       );
     });
@@ -48,6 +49,7 @@ void main() {
     test('successful read overrides dummy data when firestore populated', () async {
       final testOrder = ParentOrder(
         id: 'fs-order-1',
+        userId: 'user-coach-1',
         athleteFirstName: 'Test',
         athleteLastName: 'Firestore',
         createdAt: DateTime.now(),
@@ -55,7 +57,7 @@ void main() {
       );
       await firestore.collection('parentOrders').doc('fs-order-1').set(testOrder.toFirestore());
 
-      final orders = await OrderService.getAllOrders(firestore);
+      final orders = await OrderService.getOrdersForUser(firestore, "user-coach-1");
       expect(orders.any((o) => o.id == 'fs-order-1'), isTrue);
       expect(orders.any((o) => o.id == 'order-1'), isFalse);
     });
@@ -157,5 +159,8 @@ void main() {
     });
   });
 }
+
+
+
 
 

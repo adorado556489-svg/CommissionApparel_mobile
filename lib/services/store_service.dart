@@ -17,6 +17,7 @@ class StoreService {
   }
 
   static Future<TeamStore?> getActiveStoreForCoach(FirebaseFirestore firestore, String coachId) async {
+    print('GETTING STORE FOR COACH: $coachId');
     try {
       final qs = await firestore
           .collection(FirestorePaths.teamStores)

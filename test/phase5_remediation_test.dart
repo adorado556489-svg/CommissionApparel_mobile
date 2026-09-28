@@ -1,3 +1,6 @@
+import 'helpers/test_seeder.dart';
+
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -12,7 +15,7 @@ import 'package:commission_apparel_flutter/services/store_service.dart';
 void main() {
   late FakeFirebaseFirestore firestore;
 
-  setUp(() {
+  setUp(() async {
     firestore = FakeFirebaseFirestore();
   });
 
@@ -55,6 +58,8 @@ void main() {
     final admin = User(id: 'admin', email: 'a@a.com', password: '', firstName: 'A', lastName: 'A', role: UserRole.admin, createdAt: DateTime.now(), updatedAt: DateTime.now());
     
     setUp(() async {
+    await TestSeeder.seedAll(firestore);
+
       await firestore.collection('teamStores').doc('store1').set({
         'userId': 'owner',
         'status': 'pending',

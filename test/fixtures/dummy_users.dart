@@ -1,4 +1,4 @@
-import 'package:commission_apparel_flutter/services/dummy_fallbacks.dart' as f;
+
 import 'package:commission_apparel_flutter/models/user.dart';
 
 /// Dummy user data matching the Laravel DatabaseSeeder + extras for testing.
@@ -103,12 +103,9 @@ final List<User> rawdummyUsers = [
 ];
 
 // ── Convenience Lookups ───────────────────────────────────────────────────
-final User dummyAdmin = dummyUsers.firstWhere((u) => u.isAdmin);
-final List<User> rawdummyCoaches = dummyUsers.where((u) => u.isCoach).toList();
-final List<User> rawdummyParents = dummyUsers.where((u) => u.isParent).toList();
+final User dummyAdmin = rawdummyUsers.firstWhere((u) => u.isAdmin);
+final List<User> rawdummyCoaches = rawdummyUsers.where((u) => u.isCoach).toList();
+final List<User> rawdummyParents = rawdummyUsers.where((u) => u.isParent).toList();
 
-List<User> get dummyUsers => f.dummyUsers;
 
-List<User> get dummyCoaches => f.dummyCoaches;
 
-List<User> get dummyParents => f.dummyParents;

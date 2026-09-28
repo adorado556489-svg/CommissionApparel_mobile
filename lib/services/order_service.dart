@@ -7,8 +7,8 @@ import 'package:flutter/foundation.dart';
 class OrderService {
   static Future<List<ParentOrder>> getOrdersForStore(dynamic firestore, String storeId) async { return []; }
 
-  static Stream<List<ParentOrder>> getUnbatchedOrdersForStoreStream(dynamic firestore, String storeId) {
-    return firestore.collection('parentOrders').where('teamStoreId', isEqualTo: storeId).where('status', isEqualTo: 'pending').snapshots().map((snapshot) => snapshot.docs.map((doc) => ParentOrder.fromFirestore(doc as DocumentSnapshot)).cast<ParentOrder>().toList());
+  static Stream<List<ParentOrder>> getUnbatchedOrdersForStoreStream(FirebaseFirestore firestore, String storeId) {
+    return firestore.collection('parentOrders').where('teamStoreId', isEqualTo: storeId).where('status', isEqualTo: 'Pending Coach Approval').snapshots().map<List<ParentOrder>>((snapshot) => snapshot.docs.map((doc) => ParentOrder.fromFirestore(doc as DocumentSnapshot)).toList());
   }
 
   static const String _collectionPath = FirestorePaths.parentOrders;

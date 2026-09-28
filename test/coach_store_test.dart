@@ -1,3 +1,5 @@
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
+import 'helpers/test_seeder.dart';
 
 import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
@@ -11,11 +13,11 @@ import 'fixtures/dummy_users.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/screens/coach/coach_dashboard_screen.dart';
 
-Widget createTestApp(Widget home, AuthService auth) {
+Widget createTestApp(Widget home, AuthService auth, FirebaseFirestore firestore) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider.value(value: auth),
-      Provider<FirebaseFirestore>.value(value: FakeFirebaseFirestore()),
+      Provider<FirebaseFirestore>.value(value: firestore),
     ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
@@ -26,19 +28,22 @@ Widget createTestApp(Widget home, AuthService auth) {
 
 void main() {
   late AuthService auth;
+  late FakeFirebaseFirestore fakeFirestore;
 
-  setUp(() {
-    auth = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
-    final idx = dummyUsers.indexWhere((u) => u.email == 'david.chen@trackclub.org');
-    if (idx != -1) {
-      dummyUsers[idx] = dummyUsers[idx].copyWith(status: 'active');
-    }
+  setUp(() async {
+    fakeFirestore = FakeFirebaseFirestore();
+    await TestSeeder.seedAll(fakeFirestore);
+    
+    auth = AuthService(firestore: fakeFirestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-1', email: 'coach@example.com')));
   });
 
   group('Phase 5A - Coach Store Functionality', () {
     testWidgets('Coach with existing store sees dashboard (cannot create another)', (tester) async {
-      await auth.login('coach@example.com', 'password123'); // Marcus
-      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
+      auth = AuthService(firestore: fakeFirestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-1', email: 'coach@example.com')));
+      await auth.login('coach@example.com', 'password123');
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      print('TEST: CURRENT USER IS ${auth.currentUser?.id}');
+      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth, fakeFirestore));
       await tester.pumpAndSettle();
 
       expect(find.text('Create Team Store'), findsNothing);
@@ -46,8 +51,10 @@ void main() {
     });
 
     testWidgets('Coach without store can create a store', (tester) async {
-      await auth.login('david.chen@trackclub.org', 'password123'); // David Chen
-      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
+      auth = AuthService(firestore: fakeFirestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-3', email: 'david.chen@trackclub.org')));
+      await auth.login('david.chen@trackclub.org', 'password123');
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth, fakeFirestore));
       await tester.pumpAndSettle();
 
       expect(find.text('Create Team Store'), findsOneWidget);
@@ -62,8 +69,10 @@ void main() {
     });
 
     testWidgets('Coach can set deadline', (tester) async {
-      await auth.login('david.chen@trackclub.org', 'password123');
-      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
+      auth = AuthService(firestore: fakeFirestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-1', email: 'coach@example.com')));
+      await auth.login('coach@example.com', 'password123');
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth, fakeFirestore));
       await tester.pumpAndSettle();
 
       expect(find.text('CHANGE DATE'), findsOneWidget);
@@ -76,8 +85,10 @@ void main() {
     });
 
     testWidgets('Coach can add assigned DesignCatalog item', (tester) async {
-      await auth.login('david.chen@trackclub.org', 'password123');
-      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
+      auth = AuthService(firestore: fakeFirestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-1', email: 'coach@example.com')));
+      await auth.login('coach@example.com', 'password123');
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth, fakeFirestore));
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.add_circle), findsWidgets);
@@ -90,8 +101,10 @@ void main() {
     });
 
     testWidgets('Coach cannot set retail price below wholesale; can set valid retail pricing', (tester) async {
+      auth = AuthService(firestore: fakeFirestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-1', email: 'coach@example.com')));
       await auth.login('coach@example.com', 'password123');
-      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth, fakeFirestore));
       await tester.pumpAndSettle();
 
       final textFields = find.byType(TextField);
@@ -112,24 +125,30 @@ void main() {
     });
 
     testWidgets('Empty roster cannot be submitted', (tester) async {
-      await auth.login('david.chen@trackclub.org', 'password123'); // David has no orders
-      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
+      auth = AuthService(firestore: fakeFirestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-2', email: 'sarah.williams@school.edu')));
+      await auth.login('sarah.williams@school.edu', 'password123');
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth, fakeFirestore));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('SUBMIT MASTER ORDER'));
       await tester.tap(find.text('SUBMIT MASTER ORDER'));
       await tester.pumpAndSettle();
       expect(find.text('Cannot submit an empty roster.'), findsOneWidget);
     });
 
     testWidgets('Valid unbatched orders can be submitted; locks the store', (tester) async {
-      await auth.login('coach@example.com', 'password123'); // Marcus has unbatched order-1
-      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth));
+      auth = AuthService(firestore: fakeFirestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-1', email: 'coach@example.com')));
+      await auth.login('coach@example.com', 'password123');
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100))); // has unbatched order-1
+      await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth, fakeFirestore));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Unbatched Orders:'), findsOneWidget);
       
+      await tester.ensureVisible(find.text('SUBMIT MASTER ORDER'));
       await tester.tap(find.text('SUBMIT MASTER ORDER'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
       
       expect(find.text('Master order submitted successfully!'), findsOneWidget);
       
@@ -176,7 +195,6 @@ void main() {
 
   });
 }
-
 
 
 

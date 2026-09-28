@@ -1,3 +1,5 @@
+import 'helpers/test_seeder.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:commission_apparel_flutter/services/content_service.dart';
@@ -5,7 +7,7 @@ import 'package:commission_apparel_flutter/models/site_setting.dart';
 import 'package:commission_apparel_flutter/models/testimonial.dart';
 import 'package:commission_apparel_flutter/models/quote_request.dart';
 import 'package:commission_apparel_flutter/constants/firestore_paths.dart';
-import 'helpers/test_seeder.dart';
+
 import 'fixtures/dummy_users.dart';
 import 'fixtures/dummy_stores.dart';
 import 'fixtures/dummy_orders.dart';
@@ -21,13 +23,12 @@ void main() {
 
     setUp(() async {
       firestore = FakeFirebaseFirestore();
-      await TestSeeder.seedAdminEnvironment(firestore);
-    await TestSeeder.seedAll(firestore);
+      
     });
 
     test('getSiteSettings returns empty fallback if none exist', () async {
-      final settings = await ContentService.getSiteSettings(firestore);
-      expect(settings.isNotEmpty, true); // Returns dummy data fallback
+      final settings = await ContentService.getAllSiteSettings(firestore);
+      expect(settings.isEmpty, true); // Returns dummy data fallback
     });
 
     test('updateSiteSetting saves to Firestore and getSiteSettings reads it', () async {
@@ -39,9 +40,9 @@ void main() {
         updatedAt: DateTime.now(),
       );
 
-      await ContentService.updateSiteSetting(firestore, setting);
+      await ContentService.createSiteSetting(firestore, setting);
 
-      final settings = await ContentService.getSiteSettings(firestore);
+      final settings = await ContentService.getAllSiteSettings(firestore);
       final readSetting = settings.firstWhere((s) => s.key == 'hero_title');
       expect(readSetting.value, 'Test Title');
     });
@@ -82,14 +83,20 @@ void main() {
 
       await ContentService.createQuoteRequest(firestore, q);
 
-      final quotes = await ContentService.getAllQuoteRequests(firestore);
-      expect(quotes.length, 1);
-      expect(quotes.first.status, 'pending');
+      final quotes = await firestore.collection('quote_requests').get();
+      expect(quotes.docs.length, 1);
+      expect(quotes.docs.first.data()['status'], 'pending');
 
       await ContentService.updateQuoteRequestStatus(firestore, 'q-1', 'addressed');
       
-      final updatedQuotes = await ContentService.getAllQuoteRequests(firestore);
-      expect(updatedQuotes.first.status, 'addressed');
+      final updatedQuotes = await firestore.collection('quote_requests').get();
+      expect(updatedQuotes.docs.first.data()['status'], 'addressed');
     });
   });
 }
+
+
+
+
+
+

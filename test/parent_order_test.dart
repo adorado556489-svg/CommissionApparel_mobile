@@ -1,3 +1,4 @@
+import 'helpers/test_seeder.dart';
 import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,8 +13,9 @@ void main() {
   late AuthService authService;
   late FakeFirebaseFirestore firestore;
 
-  setUp(() {
+  setUp(() async {
     firestore = FakeFirebaseFirestore();
+    await TestSeeder.seedAll(firestore);
     authService = AuthService(firestore: firestore, firebaseAuth: AutoSeedingMockFirebaseAuth());
   });
 
@@ -32,6 +34,7 @@ void main() {
   testWidgets('Unavailable store shows closed screen (status, pricing, archived)', (WidgetTester tester) async {
     // store-4 is pending
     await tester.pumpWidget(createFormScreen('store-4'));
+      await tester.pumpAndSettle();
     
     expect(find.text('Store Closed'), findsOneWidget);
     expect(find.textContaining('This store is not accepting orders:'), findsOneWidget);
@@ -40,6 +43,7 @@ void main() {
   testWidgets('Active store can accept an order (renders form)', (WidgetTester tester) async {
     // store-1 is an active, approved, pricing_approved store with items
     await tester.pumpWidget(createFormScreen('store-1'));
+      await tester.pumpAndSettle();
     
     expect(find.text('Place Order'), findsOneWidget);
     expect(find.text('Athlete Information'), findsOneWidget);
@@ -48,6 +52,7 @@ void main() {
 
   testWidgets('Required athlete information validation', (WidgetTester tester) async {
     await tester.pumpWidget(createFormScreen('store-1'));
+      await tester.pumpAndSettle();
     
     // Tap submit without filling anything
     await tester.ensureVisible(find.text('SUBMIT ORDER'));
@@ -59,6 +64,7 @@ void main() {
 
   testWidgets('Required gender validation', (WidgetTester tester) async {
     await tester.pumpWidget(createFormScreen('store-1'));
+      await tester.pumpAndSettle();
     
     await tester.enterText(find.byType(TextFormField).at(0), 'John');
     await tester.enterText(find.byType(TextFormField).at(1), 'Doe');
@@ -74,6 +80,7 @@ void main() {
 
   testWidgets('Item selection validation (must pick at least one)', (WidgetTester tester) async {
     await tester.pumpWidget(createFormScreen('store-1'));
+      await tester.pumpAndSettle();
     
     await tester.enterText(find.byType(TextFormField).at(0), 'John');
     await tester.enterText(find.byType(TextFormField).at(1), 'Doe');
@@ -93,9 +100,11 @@ void main() {
   });
 
   testWidgets('Successful order creation and data preservation', (WidgetTester tester) async {
-    final initialOrderCount = dummyParentOrders.length;
+    final initialSnapshot = await firestore.collection('parentOrders').get();
+    final initialOrderCount = initialSnapshot.docs.length;
 
     await tester.pumpWidget(createFormScreen('store-1'));
+      await tester.pumpAndSettle();
     
     // 1. Athlete Info
     await tester.enterText(find.byType(TextFormField).at(0), 'Jane'); // First
@@ -141,18 +150,24 @@ void main() {
     expect(find.text('Order Submitted'), findsOneWidget);
     
     // Verify Data Preservation
-    expect(dummyParentOrders.length, initialOrderCount + 1);
-    final newOrder = dummyParentOrders.last;
-    expect(newOrder.athleteFirstName, 'Jane');
-    expect(newOrder.athleteLastName, 'Smith');
-    expect(newOrder.gender, 'Female');
-    expect(newOrder.jerseyName, 'SMITH');
-    expect(newOrder.jerseyNumber, '42');
-    expect(newOrder.teamStoreId, 'store-1');
-    expect(newOrder.itemEntries.isNotEmpty, true);
+    final updatedSnapshot = await firestore.collection('parentOrders').get();
+    expect(updatedSnapshot.docs.length, initialOrderCount + 1);
+    
+    final initialIds = initialSnapshot.docs.map((d) => d.id).toSet();
+    final newOrderDoc = updatedSnapshot.docs.firstWhere((d) => !initialIds.contains(d.id));
+    final newOrderData = newOrderDoc.data();
+    
+    expect(newOrderData['athleteFirstName'], 'Jane');
+    expect(newOrderData['athleteLastName'], 'Smith');
+    expect(newOrderData['gender'], 'Female');
+    expect(newOrderData['jerseyName'], 'SMITH');
+    expect(newOrderData['jerseyNumber'], '42');
+    expect(newOrderData['teamStoreId'], 'store-1');
+    expect((newOrderData['itemEntries'] as List).isNotEmpty, true);
     
     // Cleanup
-    dummyParentOrders.removeLast();
+    await firestore.collection('parentOrders').doc(newOrderDoc.id).delete();
   });
 }
+
 

@@ -8,6 +8,17 @@ import '../constants/firestore_paths.dart';
 import 'package:flutter/foundation.dart';
 
 class ContentService {
+  static Future<void> createQuoteRequest(dynamic firestore, dynamic quote) async { await firestore.collection('quote_requests').doc(quote.id).set(quote.toFirestore()); }
+  static Future<void> updateQuoteRequestStatus(dynamic firestore, String id, String status) async { await firestore.collection('quote_requests').doc(id).update({'status': status}); }
+
+  static Future<void> markNotificationRead(dynamic firestore, String id, String userId) async {
+    final doc = await firestore.collection('notifications').doc(id).get();
+    if (doc.exists && doc.data() != null && doc.data()['userId'] != userId) {
+      throw FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied');
+    }
+    await firestore.collection('notifications').doc(id).update({'isRead': true});
+  }
+
   static void _handleError(Object e, String context) {
     if (e is FirebaseException && (e.code == 'not-found' || e.code == 'unimplemented')) return;
     debugPrint('CRITICAL FIRESTORE ERROR [$context]: $e');

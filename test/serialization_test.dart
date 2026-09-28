@@ -1,3 +1,5 @@
+import 'helpers/test_seeder.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';

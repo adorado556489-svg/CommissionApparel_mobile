@@ -1,4 +1,4 @@
-import 'package:commission_apparel_flutter/services/dummy_fallbacks.dart' as f;
+
 import 'package:commission_apparel_flutter/models/team_store.dart';
 import 'package:commission_apparel_flutter/models/store_item.dart';
 import 'package:commission_apparel_flutter/models/store_item_comment.dart';
@@ -164,7 +164,7 @@ final List<StoreItemComment> rawdummyStoreItemComments = [
 ];
 
 List<StoreItem> itemsForStore(String storeId) =>
-    dummyStoreItems.where((i) => i.teamStoreId == storeId).toList();
+    rawdummyStoreItems.where((i) => i.teamStoreId == storeId).toList();
 
 Map<String, double> buildRetailPriceMap(List<StoreItem> items) {
   return {for (final item in items) item.id: item.retailPrice};
@@ -174,8 +174,6 @@ Map<String, double> buildWholesalePriceMap(List<StoreItem> items) {
   return {for (final item in items) item.id: item.wholesalePrice};
 }
 
-List<TeamStore> get dummyTeamStores => f.dummyTeamStores;
 
-List<StoreItem> get dummyStoreItems => f.dummyStoreItems;
 
-List<StoreItemComment> get dummyStoreItemComments => f.dummyStoreItemComments;
+List<StoreItemComment> get dummyStoreItemComments => [];

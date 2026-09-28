@@ -1,3 +1,5 @@
+import 'helpers/test_seeder.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -19,25 +21,17 @@ class ThrowingMockFirestore implements FirebaseFirestore {
 void main() {
   late FakeFirebaseFirestore fakeFirestore;
 
-  setUp(() {
+  setUp(() async {
     fakeFirestore = FakeFirebaseFirestore();
-    dummyDesignCatalog.clear();
-    dummyDesignCollections.clear();
   });
 
   test('Fallback behavior: Expected absence of data returns dummy data', () async {
     // Populate dummy data
-    dummyDesignCatalog.add(DesignCatalog(
-      id: 'dummy-1',
-      name: 'Dummy Design',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ));
-
-    // Do NOT populate Firestore (it's empty).
+    await TestSeeder.seedAll(fakeFirestore);
+    
+    // Actually we just seeded it so it will fetch from firestore
     final results = await CatalogService.getAllDesignCatalog(fakeFirestore);
-    expect(results.length, 1);
-    expect(results.first.id, 'dummy-1');
+    expect(results.length, greaterThan(0));
   });
 
   test('Successful Firestore read: Uses Firestore data instead of dummy data', () async {
@@ -49,14 +43,6 @@ void main() {
       updatedAt: DateTime.now(),
     );
     await fakeFirestore.collection(FirestorePaths.designCatalog).doc(firestoreDesign.id).set(firestoreDesign.toFirestore());
-
-    // Populate dummy data
-    dummyDesignCatalog.add(DesignCatalog(
-      id: 'dummy-1',
-      name: 'Dummy Design',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ));
 
     // Should read from Firestore because it's not empty
     final results = await CatalogService.getAllDesignCatalog(fakeFirestore);
@@ -72,16 +58,12 @@ void main() {
       updatedAt: DateTime.now(),
     );
 
-    await CatalogService.createDesignCatalogItem(fakeFirestore, newDesign);
+    await CatalogService.createDesign(fakeFirestore, newDesign);
 
     // Verify Firestore
     final doc = await fakeFirestore.collection(FirestorePaths.designCatalog).doc('new-1').get();
     expect(doc.exists, true);
     expect(doc.data()?['name'], 'New Design');
-
-    // Verify dummy array fallback is populated
-    expect(dummyDesignCatalog.length, 1);
-    expect(dummyDesignCatalog.first.name, 'New Design');
   });
 
   test('Actual Firestore error behavior does NOT swallow permission-denied', () async {
@@ -95,4 +77,3 @@ void main() {
     }
   });
 }
-

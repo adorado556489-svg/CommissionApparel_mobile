@@ -1,4 +1,4 @@
-import 'package:commission_apparel_flutter/services/dummy_fallbacks.dart' as f;
+
 import 'package:commission_apparel_flutter/models/parent_order.dart';
 
 /// Dummy parent orders for testing order workflows.
@@ -242,18 +242,17 @@ final List<ParentOrder> rawdummyParentOrders = [
 
 /// Orders for a specific store.
 List<ParentOrder> ordersForStore(String storeId) =>
-    dummyParentOrders.where((o) => o.teamStoreId == storeId).toList();
+    rawdummyParentOrders.where((o) => o.teamStoreId == storeId).toList();
 
 /// Orders in a specific batch.
 List<ParentOrder> ordersInBatch(String batchId) =>
-    dummyParentOrders.where((o) => o.batchId == batchId).toList();
+    rawdummyParentOrders.where((o) => o.batchId == batchId).toList();
 
 /// Active (non-archived) orders.
 List<ParentOrder> get activeOrders =>
-    dummyParentOrders.where((o) => !o.isArchived).toList();
+    rawdummyParentOrders.where((o) => !o.isArchived).toList();
 
 /// Direct orders (no parent user).
 List<ParentOrder> get directOrders =>
-    dummyParentOrders.where((o) => o.isDirectOrder).toList();
+    rawdummyParentOrders.where((o) => o.isDirectOrder).toList();
 
-List<ParentOrder> get dummyParentOrders => f.dummyParentOrders;

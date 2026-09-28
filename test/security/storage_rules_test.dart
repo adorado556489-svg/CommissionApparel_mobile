@@ -1,3 +1,4 @@
+import '../helpers/test_seeder.dart';
 /// Phase 5 — Storage Security Rules Verification Tests
 ///
 /// These tests verify the Storage security model contracts defined in storage.rules.
@@ -16,8 +17,9 @@ import 'package:commission_apparel_flutter/services/store_service.dart';
 void main() {
   late FirebaseFirestore firestore;
 
-  setUp(() {
+  setUp(() async {
     firestore = FakeFirebaseFirestore();
+    await TestSeeder.seedAll(firestore);
   });
 
   group('Storage Security Rule Contracts', () {

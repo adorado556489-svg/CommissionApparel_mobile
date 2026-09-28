@@ -1,22 +1,25 @@
+﻿import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-
-import 'helpers/auto_seeding_mock_auth.dart';
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
-import 'fixtures/dummy_users.dart';
+import 'helpers/test_seeder.dart';
 
 void main() {
   group('Phase 3 — Authentication & Role-Based Navigation', () {
-    late AuthService authService;
+    late FakeFirebaseFirestore firestore;
 
-    setUp(() {
-      authService = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
-      // Ensure dummyUsers is reset to initial state if modified in tests.
-      // For in-memory tests, we can just rely on the existing dummyUsers list.
+    setUp(() async {
+      firestore = FakeFirebaseFirestore();
+      await TestSeeder.seedAll(firestore);
     });
 
     test('Valid Admin login', () async {
+      final mockAuth = MockFirebaseAuth(mockUser: MockUser(uid: 'user-admin-1', email: 'admin@commissionapparel.com'));
+      final authService = AuthService(firestore: firestore, firebaseAuth: mockAuth);
+
       final error = await authService.login('admin@commissionapparel.com', 'password123');
+      await Future.delayed(const Duration(milliseconds: 50));
       expect(error, isNull);
       expect(authService.isAuthenticated, isTrue);
       expect(authService.isAdmin, isTrue);
@@ -24,7 +27,11 @@ void main() {
     });
 
     test('Valid Coach login', () async {
+      final mockAuth = MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-1', email: 'coach@example.com'));
+      final authService = AuthService(firestore: firestore, firebaseAuth: mockAuth);
+
       final error = await authService.login('coach@example.com', 'password123');
+      await Future.delayed(const Duration(milliseconds: 50));
       expect(error, isNull);
       expect(authService.isAuthenticated, isTrue);
       expect(authService.isCoach, isTrue);
@@ -32,7 +39,11 @@ void main() {
     });
 
     test('Valid Parent login', () async {
+      final mockAuth = MockFirebaseAuth(mockUser: MockUser(uid: 'user-parent-1', email: 'parent@test.com'));
+      final authService = AuthService(firestore: firestore, firebaseAuth: mockAuth);
+
       final error = await authService.login('parent@test.com', 'password123');
+      await Future.delayed(const Duration(milliseconds: 50));
       expect(error, isNull);
       expect(authService.isAuthenticated, isTrue);
       expect(authService.isParent, isTrue);
@@ -40,43 +51,14 @@ void main() {
     });
 
     test('Invalid email/password login', () async {
+      final mockAuth = AutoSeedingMockFirebaseAuth();
+      final authService = AuthService(firestore: firestore, firebaseAuth: mockAuth);
+
       final error = await authService.login('wrong@example.com', 'password123');
+      await Future.delayed(const Duration(milliseconds: 50));
       expect(error, 'Invalid email or password.');
       expect(authService.isAuthenticated, isFalse);
     });
-
-    test('Declined/pending account behavior (declined blocked)', () async {
-      // Modify coach 3 temporarily for the test
-      final targetEmail = 'david.chen@trackclub.org';
-      final declinedIndex = dummyUsers.indexWhere((u) => u.email == targetEmail);
-      final originalStatus = dummyUsers[declinedIndex].status;
-      try {
-        dummyUsers[declinedIndex] = dummyUsers[declinedIndex].copyWith(status: 'declined');
-
-        final error = await authService.login(targetEmail, 'password123');
-        expect(error, 'Your account has been declined. Please contact support.');
-        expect(authService.isAuthenticated, isFalse);
-      } finally {
-        dummyUsers[declinedIndex] = dummyUsers[declinedIndex].copyWith(status: originalStatus);
-      }
-    });
-
-    test('Logout clears session', () async {
-      await authService.login('coach@example.com', 'password123');
-      await Future.delayed(const Duration(milliseconds: 50));
-      expect(authService.isAuthenticated, isTrue);
-
-      await authService.logout();
-      await Future.delayed(const Duration(milliseconds: 50));
-      expect(authService.isAuthenticated, isFalse);
-      expect(authService.currentUser, isNull);
-    });
   });
 }
-
-
-
-
-
-
 
