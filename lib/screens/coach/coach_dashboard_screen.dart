@@ -121,7 +121,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
       id: 'item-${DateTime.now().millisecondsSinceEpoch}',
       teamStoreId: _activeStore!.id,
       designCatalogId: design.id, name: design.name,
-      retailPrice: design.wholesalePrice + 5.0,
+      wholesalePrice: design.wholesalePrice, retailPrice: design.wholesalePrice + 5.0,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
