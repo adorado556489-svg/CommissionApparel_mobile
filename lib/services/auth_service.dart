@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'dart:async';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -10,15 +11,17 @@ export '../models/user.dart' show UserRole;
 class AuthService extends ChangeNotifier {
   final fb.FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final dynamic _googleSignIn;
+  final GoogleSignIn _googleSignIn;
   User? _currentUser;
   bool _isLoading = true;
 
   AuthService({
     fb.FirebaseAuth? firebaseAuth,
-    required this._firestore,
-    this._googleSignIn,
-  })  : _auth = firebaseAuth ?? fb.FirebaseAuth.instance {
+    required FirebaseFirestore firestore,
+    GoogleSignIn? googleSignIn,
+  })  : _auth = firebaseAuth ?? fb.FirebaseAuth.instance,
+        _firestore = firestore,
+        _googleSignIn = googleSignIn ?? GoogleSignIn() {
     _init();
   }
 
@@ -167,7 +170,7 @@ class AuthService extends ChangeNotifier {
           firstName: firstName,
           lastName: lastName,
           organization: organization,
-          role: UserRole.coach,
+          role: UserRole.parent,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -193,7 +196,6 @@ class AuthService extends ChangeNotifier {
 
   Future<User?> signInWithGoogle() async {
     try {
-      if (_googleSignIn == null) throw Exception('Google SignIn not configured');
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
@@ -214,7 +216,7 @@ class AuthService extends ChangeNotifier {
             password: '',
             firstName: googleUser.displayName?.split(' ').first ?? 'Google',
             lastName: googleUser.displayName?.split(' ').skip(1).join(' ') ?? 'User',
-            role: UserRole.coach,
+            role: UserRole.parent,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           );
@@ -274,3 +276,4 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 }
+
