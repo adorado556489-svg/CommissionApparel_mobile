@@ -1,7 +1,6 @@
 import '../models/user.dart';
 import '../models/landing_collection.dart';
 import '../models/testimonial.dart';
-import '../models/site_setting.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminService {
@@ -66,6 +65,21 @@ class AdminService {
         for (var doc in qs.docs) {
           if (doc.data()['teamStoreId'] == null) {
             batch.update(doc.reference, {'status': 'Processing', 'isArchived': true});
+
+            // Notify parent
+            final parentId = doc.data()['userId'];
+            if (parentId != null) {
+              final notifRef = firestore.collection('notifications').doc();
+              batch.set(notifRef, {
+                'userId': parentId,
+                'type': 'order_processing',
+                'title': 'Direct Order Processing',
+                'message': 'Your direct order for ${doc.data()['athleteFirstName']} is now processing!',
+                'readAt': null,
+                'data': {'orderId': doc.id},
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+            }
           }
         }
         await batch.commit();
@@ -86,6 +100,21 @@ class AdminService {
         for (var doc in qs.docs) {
           if (doc.data()['teamStoreId'] != null) {
             batch.update(doc.reference, {'status': 'Processing', 'isArchived': true});
+            
+            // Notify parent
+            final parentId = doc.data()['userId'];
+            if (parentId != null) {
+              final notifRef = firestore.collection('notifications').doc();
+              batch.set(notifRef, {
+                'userId': parentId,
+                'type': 'order_processing',
+                'title': 'Order Processing',
+                'message': 'Your order for ${doc.data()['athleteFirstName']} has been reviewed by the admin and is now processing!',
+                'readAt': null,
+                'data': {'orderId': doc.id},
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+            }
           }
         }
         await batch.commit();
@@ -129,8 +158,6 @@ class AdminService {
     return null;
   }
 
-  static void _sortLandingCollections() {}
-
   static String? createTestimonial(User admin, Testimonial testimonial) {
     if (admin.role != UserRole.admin) return 'Unauthorized';
     return null;
@@ -145,8 +172,6 @@ class AdminService {
     if (admin.role != UserRole.admin) return 'Unauthorized';
     return null;
   }
-
-  static void _sortTestimonials() {}
 
   static String? updateHeroSettings(User admin, {required String subtitle, String? mediaPath, String? mediaType}) {
     if (admin.role != UserRole.admin) return 'Unauthorized';

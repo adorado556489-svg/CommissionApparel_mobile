@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "919983232242-ov6or41t5pori1ohfkl1kf8hl0nfd0bp.apps.googleusercontent.com",
+          "client_id": "919983232242-a9ait9qhi8av0dbqhllb2f4phk7iip8q.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.commissionapparel.mobile",
-            "certificate_hash": "8e022ba1ce71244ca8d7c85d33fd650a193010ad"
+            "certificate_hash": "817ecc1b4375df4d68a0528931964e42d24ccf4f"
           }
         },
         {

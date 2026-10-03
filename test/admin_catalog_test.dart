@@ -21,7 +21,7 @@ Widget createTestApp(Widget home, AuthService auth, [FirebaseFirestore? fs]) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider.value(value: auth),
-      Provider<FirebaseFirestore>.value(value: fs!),
+      Provider<FirebaseFirestore>.value(value: fs),
     ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
@@ -38,13 +38,13 @@ void main() {
     firestore = FakeFirebaseFirestore();
     await TestSeeder.seedAll(firestore);
         
-    auth = AuthService(firestore: FakeFirebaseFirestore(), firebaseAuth: AutoSeedingMockFirebaseAuth());
+    auth = AuthService(firestore: firestore, firebaseAuth: AutoSeedingMockFirebaseAuth());
   });
 
   group('Phase 5C - Admin Catalog Functionality', () {
     testWidgets('Admin can create a collection', (tester) async {
+      await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth, firestore));
       await auth.login('admin@commissionapparel.com', 'password123');
-      await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
       await tester.tap(find.descendant(of: find.byType(TabBar), matching: find.text('COLLECTIONS')));
@@ -64,8 +64,8 @@ void main() {
     });
     
     testWidgets('Admin can create a design', (tester) async {
+      await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth, firestore));
       await auth.login('admin@commissionapparel.com', 'password123');
-      await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth));
       await tester.pumpAndSettle();
 
       await tester.tap(find.descendant(of: find.byType(TabBar), matching: find.text('CATALOG')));

@@ -134,7 +134,7 @@ class OrderService {
     final firstName = orderType == 'item' ? 'Bulk' : (athleteFirstName ?? 'Direct');
     final lastName = orderType == 'item' ? 'Order' : (athleteLastName ?? 'Order');
 
-    final newId = DateTime.now().millisecondsSinceEpoch.toString() + '_' + currentUser.id;
+    final newId = '${DateTime.now().millisecondsSinceEpoch}_${currentUser.id}';
     final newOrder = ParentOrder(
       id: newId,
       teamStoreId: null,
@@ -214,7 +214,7 @@ class OrderService {
       return 'You have no draft orders to submit.';
     }
 
-    final batchId = DateTime.now().millisecondsSinceEpoch.toString() + '_' + currentUser.id;
+    final batchId = '${DateTime.now().millisecondsSinceEpoch}_${currentUser.id}';
 
     try {
       final batch = firestore.batch();

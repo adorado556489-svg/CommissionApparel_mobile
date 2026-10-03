@@ -1,15 +1,9 @@
-import 'helpers/test_seeder.dart';
-import 'helpers/auto_seeding_mock_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:provider/provider.dart';
-import 'package:commission_apparel_flutter/app/theme.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
 import 'package:commission_apparel_flutter/models/store_item.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
-import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/services/store_service.dart';
 
 void main() {

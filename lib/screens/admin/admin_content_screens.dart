@@ -10,7 +10,7 @@ import '../../models/testimonial.dart';
 import '../../data/dummy_content.dart';
 import '../../data/dummy_quotes.dart';
 import '../../widgets/app_scaffold.dart';
-import '../../widgets/glass_panel.dart';
+import '../../services/storage_service.dart';
 
 class AdminHeroEditScreen extends StatefulWidget {
   const AdminHeroEditScreen({super.key});
@@ -94,7 +94,7 @@ class _AdminHeroEditScreenState extends State<AdminHeroEditScreen> {
                         onPressed: () async {
                           final picked = await _picker.pickImage(source: ImageSource.gallery);
                           if (picked != null) {
-                            _save(picked.path);
+                            String? url = await StorageService().uploadFile('hero', File(picked.path)); if (url != null) { _save(url); }
                           }
                         },
                       ),
@@ -219,10 +219,12 @@ class _AdminLandingCollectionsScreenState extends State<AdminLandingCollectionsS
                   IconButton(
                     icon: const Icon(Icons.image),
                     onPressed: () async {
+                      final authService = context.read<AuthService>();
                       final picked = await _picker.pickImage(source: ImageSource.gallery);
                       if (picked != null) {
-                        final admin = context.read<AuthService>().currentUser!;
+                        final admin = authService.currentUser!;
                         AdminService.updateLandingCollection(admin, c.copyWith(imagePath: picked.path));
+                        if (!mounted) return;
                         setState(() {});
                       }
                     },
@@ -347,10 +349,12 @@ class _AdminTestimonialsScreenState extends State<AdminTestimonialsScreen> {
                   IconButton(
                     icon: const Icon(Icons.image),
                     onPressed: () async {
+                      final authService = context.read<AuthService>();
                       final picked = await _picker.pickImage(source: ImageSource.gallery);
                       if (picked != null) {
-                        final admin = context.read<AuthService>().currentUser!;
+                        final admin = authService.currentUser!;
                         AdminService.updateTestimonial(admin, t.copyWith(imagePath: picked.path));
+                        if (!mounted) return;
                         setState(() {});
                       }
                     },

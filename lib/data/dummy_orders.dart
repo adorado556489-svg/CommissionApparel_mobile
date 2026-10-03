@@ -19,6 +19,8 @@ final List<ParentOrder> dummyParentOrders = [
         types: ['Jersey', 'Shorts'],
         sizes: {'Jersey': 'L', 'Shorts': 'M'},
         quantity: 1,
+        retailPrice: 40.0,
+        wholesalePrice: 20.0,
         components: [
           OrderItemComponent(
             storeItemId: 'item-1-jersey',
@@ -38,6 +40,8 @@ final List<ParentOrder> dummyParentOrders = [
         types: ['Hoodie'],
         sizes: {'Hoodie': 'L'},
         quantity: 1,
+        retailPrice: 40.0,
+        wholesalePrice: 20.0,
       ),
     ],
     totalRetailPrice: 150.00, // 85 (package) + 65 (hoodie)
@@ -63,6 +67,8 @@ final List<ParentOrder> dummyParentOrders = [
         types: ['Jersey', 'Shorts'],
         sizes: {'Jersey': 'M', 'Shorts': 'S'},
         quantity: 1,
+        retailPrice: 40.0,
+        wholesalePrice: 20.0,
         components: [
           OrderItemComponent(
             storeItemId: 'item-1-jersey',
@@ -100,6 +106,8 @@ final List<ParentOrder> dummyParentOrders = [
         types: ['Jersey', 'Shorts'],
         sizes: {'Jersey': 'XL', 'Shorts': 'L'},
         quantity: 1,
+        retailPrice: 40.0,
+        wholesalePrice: 20.0,
         components: [
           OrderItemComponent(
             storeItemId: 'item-1-jersey',
@@ -119,6 +127,8 @@ final List<ParentOrder> dummyParentOrders = [
         types: ['Hoodie'],
         sizes: {'Hoodie': 'XL'},
         quantity: 1,
+        retailPrice: 40.0,
+        wholesalePrice: 20.0,
       ),
       OrderItemEntry(
         storeItemId: 'item-1-shooting',
@@ -126,6 +136,8 @@ final List<ParentOrder> dummyParentOrders = [
         types: ['T-Shirt'],
         sizes: {'T-Shirt': 'L'},
         quantity: 2,
+        retailPrice: 40.0,
+        wholesalePrice: 20.0,
       ),
     ],
     totalRetailPrice: 240.00, // 85 + 65 + (45 × 2)
@@ -152,6 +164,8 @@ final List<ParentOrder> dummyParentOrders = [
         types: ['Jersey'],
         sizes: {'Jersey': 'M'},
         quantity: 1,
+        retailPrice: 40.0,
+        wholesalePrice: 20.0,
       ),
     ],
     totalRetailPrice: 55.00,
@@ -179,6 +193,8 @@ final List<ParentOrder> dummyParentOrders = [
         types: ['Jersey'],
         sizes: {'Jersey': 'L'},
         quantity: 1,
+        retailPrice: 40.0,
+        wholesalePrice: 20.0,
       ),
     ],
     totalRetailPrice: 55.00,
@@ -227,6 +243,8 @@ final List<ParentOrder> dummyParentOrders = [
         types: ['Jersey'],
         sizes: {'Jersey': 'M'},
         quantity: 1,
+        retailPrice: 40.0,
+        wholesalePrice: 20.0,
       ),
     ],
     totalRetailPrice: 0.0,

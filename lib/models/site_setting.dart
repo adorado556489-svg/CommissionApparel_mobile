@@ -39,6 +39,22 @@ class SiteSetting {
     };
   }
 
+  SiteSetting copyWith({
+    String? id,
+    String? key,
+    String? value,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return SiteSetting(
+      id: id ?? this.id,
+      key: key ?? this.key,
+      value: value ?? this.value,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   /// Look up a setting by key from a list.
   static String? getValue(List<SiteSetting> settings, String key) {
     for (final s in settings) {

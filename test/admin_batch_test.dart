@@ -4,7 +4,6 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
 import 'package:commission_apparel_flutter/services/admin_service.dart';
 import 'fixtures/dummy_users.dart';
-import 'fixtures/dummy_orders.dart';
 import 'package:commission_apparel_flutter/models/parent_order.dart';
 
 void main() {

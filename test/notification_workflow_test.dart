@@ -5,36 +5,20 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
-import 'package:commission_apparel_flutter/services/admin_service.dart';
 import 'package:commission_apparel_flutter/services/content_service.dart';
 import 'package:commission_apparel_flutter/services/store_service.dart';
 
-import 'fixtures/dummy_users.dart';
-import 'fixtures/dummy_stores.dart';
-import 'fixtures/dummy_orders.dart';
-import 'fixtures/dummy_catalog.dart';
-import 'fixtures/dummy_content.dart';
-import 'fixtures/dummy_quotes.dart';
 
 void main() {
   TestSeeder.populateDummyFallbacks();
 
   group('Phase I - Notification Workflow Tests', () {
     late FakeFirebaseFirestore firestore;
-    late User adminUser;
     late User coachUser;
 
     setUp(() async {
       firestore = FakeFirebaseFirestore();
       await TestSeeder.seedAdminEnvironment(firestore);
-      adminUser = User(password: '', updatedAt: DateTime.now(),
-        id: 'admin',
-        email: 'admin@test.com',
-        firstName: 'Admin',
-        lastName: 'User',
-        role: UserRole.admin,
-        createdAt: DateTime.now(),
-      );
       coachUser = User(password: '', updatedAt: DateTime.now(),
         id: 'coach-1',
         email: 'coach@test.com',

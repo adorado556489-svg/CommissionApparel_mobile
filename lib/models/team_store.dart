@@ -17,6 +17,7 @@ class TeamStore {
   final String? packageType; // package_a, package_b, package_c, individual
   final bool pricingApproved;
   final bool isArchived;
+  final String? paymentInstructions;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -32,6 +33,7 @@ class TeamStore {
     this.packageType,
     this.pricingApproved = false,
     this.isArchived = false,
+    this.paymentInstructions,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -50,6 +52,7 @@ class TeamStore {
       packageType: data['packageType'],
       pricingApproved: data['pricingApproved'] ?? false,
       isArchived: data['isArchived'] ?? false,
+      paymentInstructions: data['paymentInstructions'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -67,6 +70,7 @@ class TeamStore {
       'packageType': packageType,
       'pricingApproved': pricingApproved,
       'isArchived': isArchived,
+      'paymentInstructions': paymentInstructions,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -113,6 +117,7 @@ class TeamStore {
     String? packageType,
     bool? pricingApproved,
     bool? isArchived,
+    String? paymentInstructions,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -128,6 +133,7 @@ class TeamStore {
       packageType: packageType ?? this.packageType,
       pricingApproved: pricingApproved ?? this.pricingApproved,
       isArchived: isArchived ?? this.isArchived,
+      paymentInstructions: paymentInstructions ?? this.paymentInstructions,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

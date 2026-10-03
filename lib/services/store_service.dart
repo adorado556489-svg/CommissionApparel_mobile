@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/team_store.dart';
 import '../models/store_item.dart';
-import '../models/user.dart';
 import '../constants/firestore_paths.dart';
 import 'package:flutter/foundation.dart';
 
@@ -17,7 +16,7 @@ class StoreService {
   }
 
   static Future<TeamStore?> getActiveStoreForCoach(FirebaseFirestore firestore, String coachId) async {
-    print('GETTING STORE FOR COACH: $coachId');
+    debugPrint('GETTING STORE FOR COACH: $coachId');
     try {
       final qs = await firestore
           .collection(FirestorePaths.teamStores)
@@ -29,6 +28,21 @@ class StoreService {
         return TeamStore.fromFirestore(qs.docs.first);
       }
     } catch (e) { _handleError(e, "StoreService"); }
+    return null;
+  }
+
+  static Future<TeamStore?> getStoreForUser(FirebaseFirestore firestore, String userId) async {
+    try {
+      final qs = await firestore
+          .collection(FirestorePaths.teamStores)
+          .where('userId', isEqualTo: userId)
+          .where('isArchived', isEqualTo: false)
+          .limit(1)
+          .get();
+      if (qs.docs.isNotEmpty) {
+        return TeamStore.fromFirestore(qs.docs.first);
+      }
+    } catch (e) { _handleError(e, "StoreService.getStoreForUser"); }
     return null;
   }
 

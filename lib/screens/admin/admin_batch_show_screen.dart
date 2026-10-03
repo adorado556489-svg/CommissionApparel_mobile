@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
@@ -38,13 +38,15 @@ class _AdminBatchShowScreenState extends State<AdminBatchShowScreen> {
 
   Future<void> _markAddressed() async {
     final admin = context.read<AuthService>().currentUser!;
+    final firestore = context.read<FirebaseFirestore>();
     String? error;
     if (_isDirect) {
-      error = await AdminService.markDirectBatchAddressed(context.read<FirebaseFirestore>(), admin, widget.batchId);
+      error = await AdminService.markDirectBatchAddressed(firestore, admin, widget.batchId);
     } else {
-      error = await AdminService.markStoreBatchAddressed(context.read<FirebaseFirestore>(), admin, widget.batchId);
+      error = await AdminService.markStoreBatchAddressed(firestore, admin, widget.batchId);
     }
 
+    if (!mounted) return;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
@@ -57,7 +59,9 @@ class _AdminBatchShowScreenState extends State<AdminBatchShowScreen> {
 
   Future<void> _deleteBatch() async {
     final admin = context.read<AuthService>().currentUser!;
-    final error = await AdminService.deleteArchivedOrderBatch(context.read<FirebaseFirestore>(), admin, widget.batchId);
+    final firestore = context.read<FirebaseFirestore>();
+    final error = await AdminService.deleteArchivedOrderBatch(firestore, admin, widget.batchId);
+    if (!mounted) return;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
@@ -72,7 +76,7 @@ class _AdminBatchShowScreenState extends State<AdminBatchShowScreen> {
       return const AppScaffold(title: 'Batch Details', body: Center(child: Text('Batch not found or empty.')));
     }
 
-    final totalValue = _orders.fold<double>(0, (sum, o) => sum + o.totalRetailPrice);
+    final totalValue = _orders.fold<double>(0, (acc, o) => acc + o.totalRetailPrice);
     final isAddressed = _isArchived && _status == 'Processing';
 
     return AppScaffold(
@@ -135,12 +139,12 @@ class _AdminBatchShowScreenState extends State<AdminBatchShowScreen> {
         subtitle: Text(order.itemEntries.map((e) => e.name).join(', ')),
         trailing: IconButton(
           icon: const Icon(Icons.edit),
-          onPressed: () {
+          onPressed: () async {
             // Admin editing
-            Navigator.of(context).pushNamed('/coach/order/edit', arguments: order.id).then((_) {
-              setState(() {
-                _loadBatch();
-              });
+            await Navigator.of(context).pushNamed('/coach/order/edit', arguments: order.id);
+            if (!mounted) return;
+            setState(() {
+              _loadBatch();
             });
           },
         ),

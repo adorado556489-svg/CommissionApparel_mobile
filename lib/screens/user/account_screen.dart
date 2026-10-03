@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../app/theme.dart';
@@ -43,14 +43,18 @@ class AccountScreen extends StatelessWidget {
                     leading: const Icon(Icons.settings),
                     title: const Text('Settings'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.pushNamed(context, '/account/settings');
+                    },
                   ),
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.help_outline),
                     title: const Text('Help & Support'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.pushNamed(context, '/account/help');
+                    },
                   ),
                 ],
               ),

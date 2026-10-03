@@ -1,13 +1,12 @@
-import 'helpers/test_seeder.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
 import 'package:commission_apparel_flutter/models/parent_order.dart';
-import 'package:commission_apparel_flutter/models/store_item.dart';
 
 // Create a simple mock DocumentSnapshot for testing
+// ignore: subtype_of_sealed_class
 class MockDocumentSnapshot implements DocumentSnapshot<Map<String, dynamic>> {
   final String _id;
   final Map<String, dynamic> _data;

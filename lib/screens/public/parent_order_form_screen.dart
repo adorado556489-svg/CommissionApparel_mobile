@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../app/theme.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../data/dummy_stores.dart';
-import '../../data/dummy_orders.dart';
 import '../../models/store_item.dart';
 import '../../services/order_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -108,6 +107,8 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
         entries.add(OrderItemEntry(
           storeItemId: state.item.id,
           name: state.item.name,
+          retailPrice: state.item.retailPrice,
+          wholesalePrice: state.item.wholesalePrice,
           types: state.item.types,
           quantity: state.qty,
           components: comps,
@@ -116,6 +117,8 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
         entries.add(OrderItemEntry(
           storeItemId: state.item.id,
           name: state.item.name,
+          retailPrice: state.item.retailPrice,
+          wholesalePrice: state.item.wholesalePrice,
           types: state.item.types,
           sizes: Map.from(state.sizes),
           quantity: state.qty,
@@ -145,12 +148,34 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
 
     await OrderService.createOrder(context.read<FirebaseFirestore>(), newOrder);
 
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: const Text('Order Submitted'),
-        content: Text('Successfully placed order for ${newOrder.athleteFirstName} ${newOrder.athleteLastName}!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Successfully placed order for ${newOrder.athleteFirstName} ${newOrder.athleteLastName}!'),
+            if (store.paymentInstructions != null && store.paymentInstructions!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text('Payment Instructions from Coach:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+                ),
+                child: Text(store.paymentInstructions!, style: const TextStyle(fontSize: 16)),
+              ),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -209,7 +234,7 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _gender,
+                initialValue: _gender,
                 decoration: const InputDecoration(labelText: 'Gender *', border: OutlineInputBorder()),
                 items: const [
                   DropdownMenuItem(value: 'Male', child: Text('Male')),
@@ -362,7 +387,7 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
         return Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
           child: DropdownButtonFormField<String>(
-            value: state.sizes[t],
+            initialValue: state.sizes[t],
             decoration: InputDecoration(labelText: 'Size for ${t.replaceAll('_', ' ')}', border: const OutlineInputBorder()),
             items: DesignCatalog.allSizes().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
             onChanged: (val) => setState(() => state.sizes[t] = val!),
@@ -390,7 +415,7 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
           return Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: DropdownButtonFormField<String>(
-              value: state.componentSizes[comp.id]![t],
+              initialValue: state.componentSizes[comp.id]![t],
               decoration: InputDecoration(labelText: 'Size for ${t.replaceAll('_', ' ')}', border: const OutlineInputBorder()),
               items: DesignCatalog.allSizes().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (val) => setState(() => state.componentSizes[comp.id]![t] = val!),

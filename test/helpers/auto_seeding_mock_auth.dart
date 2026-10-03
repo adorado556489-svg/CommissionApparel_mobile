@@ -3,7 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 
 class AutoSeedingMockFirebaseAuth extends MockFirebaseAuth {
+  User? _signedInUser;
+
   AutoSeedingMockFirebaseAuth({super.mockUser});
+
+  @override
+  User? get currentUser => _signedInUser ?? super.currentUser;
 
   @override
   Future<UserCredential> signInWithEmailAndPassword({required String email, required String password}) async {
@@ -15,11 +20,8 @@ class AutoSeedingMockFirebaseAuth extends MockFirebaseAuth {
     if (email == 'parent@test.com') uid = 'user-parent-1';
     if (email == 'wrong@example.com') throw Exception('invalid');
     
-    // We can't easily change the MockFirebaseAuth's generated UID, but wait, MockFirebaseAuth has `mockUser`.
-    // Actually, we don't even need to call createUserWithEmailAndPassword if we just want to return a UserCredential.
-    // Wait, MockFirebaseAuth needs the user to exist in its internal state.
-    // But since it's a test file, we can just instantiate a new MockFirebaseAuth with the right mockUser for that email!
     final mockUser = MockUser(uid: uid, email: email);
+    _signedInUser = mockUser;
     return MockUserCredential(false, mockUser: mockUser);
   }
 }

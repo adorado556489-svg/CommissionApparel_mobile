@@ -24,8 +24,6 @@ void main() {
     });
 
     test('Admin can update coach information', () async {
-      final originalFirstName = coachUser.firstName;
-
       final error = await AdminService.updateCoach(firestore,
         adminUser,
         coachUser,
@@ -47,7 +45,6 @@ void main() {
     });
 
         test('Admin can reset coach password', () async {
-      final originalPassword = coachUser.password;
       final error = AdminService.resetCoachPassword(adminUser, coachUser, 'new_password123');
       expect(error, isNull);
       await firestore.collection('users').doc(coachUser.id).update({'password': 'new_password123'});

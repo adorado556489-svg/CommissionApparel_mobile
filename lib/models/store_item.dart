@@ -9,6 +9,7 @@ class StoreItem {
   final String id;
   final String teamStoreId; // FK -> TeamStore
   final String? designCatalogId; // FK -> DesignCatalog
+  final String? collectionId; // FK -> DesignCollection (Coach custom collection)
   final String name;
   final List<String> types; // garment types, e.g. ['Jersey', 'Shorts']
   final String? imageUrl; // legacy single image
@@ -26,6 +27,7 @@ class StoreItem {
     required this.id,
     required this.teamStoreId,
     this.designCatalogId,
+    this.collectionId,
     required this.name,
     this.types = const [],
     this.imageUrl,
@@ -44,6 +46,7 @@ class StoreItem {
       id: doc.id,
       teamStoreId: data['teamStoreId'] ?? '',
       designCatalogId: data['designCatalogId'],
+      collectionId: data['collectionId'],
       name: data['name'] ?? '',
       types: List<String>.from(data['types'] ?? []),
       imageUrl: data['imageUrl'],
@@ -61,6 +64,7 @@ class StoreItem {
     return {
       'teamStoreId': teamStoreId,
       'designCatalogId': designCatalogId,
+      'collectionId': collectionId,
       'name': name,
       'types': types,
       'imageUrl': imageUrl,
@@ -89,6 +93,7 @@ class StoreItem {
     String? id,
     String? teamStoreId,
     String? designCatalogId,
+    String? collectionId,
     String? name,
     List<String>? types,
     String? imageUrl,
@@ -104,6 +109,7 @@ class StoreItem {
       id: id ?? this.id,
       teamStoreId: teamStoreId ?? this.teamStoreId,
       designCatalogId: designCatalogId ?? this.designCatalogId,
+      collectionId: collectionId ?? this.collectionId,
       name: name ?? this.name,
       types: types ?? this.types,
       imageUrl: imageUrl ?? this.imageUrl,

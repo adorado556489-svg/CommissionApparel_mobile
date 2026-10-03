@@ -9,6 +9,7 @@ import '../../../data/dummy_catalog.dart';
 import '../../../data/dummy_users.dart';
 import '../../../data/dummy_stores.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloudinary_public/cloudinary_public.dart';
 
 class AdminCatalogTab extends StatefulWidget {
   const AdminCatalogTab({super.key});
@@ -32,7 +33,6 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
 
   List<DesignCatalog> _catalogItems = [];
   List<DesignCollection> _collections = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -48,7 +48,6 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
       setState(() {
         _catalogItems = items;
         _collections = cols;
-        _isLoading = false;
       });
     }
   }
@@ -60,17 +59,40 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
 
 
 
+  bool _isUploadingImage = false;
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        _imagePaths = [pickedFile.path];
+        _isUploadingImage = true;
       });
+      try {
+        final cloudinary = CloudinaryPublic('brtamhix', 'commission_apparel', cache: false);
+        CloudinaryResponse response = await cloudinary.uploadFile(
+          CloudinaryFile.fromFile(pickedFile.path, resourceType: CloudinaryResourceType.Image),
+        );
+        setState(() {
+          _imagePaths = [response.secureUrl];
+          _isUploadingImage = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image uploaded to Cloudinary successfully.')));
+        }
+      } catch (e) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cloudinary upload failed: $e')));
+        }
+      }
     }
   }
 
   Future<void> _createDesign() async {
+    final firestore = context.read<FirebaseFirestore>();
     if (_formKey.currentState!.validate() && _selectedTypes.isNotEmpty) {
       final newDesign = DesignCatalog(
         id: 'design-${DateTime.now().millisecondsSinceEpoch}',
@@ -87,7 +109,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      await CatalogService.createDesignCatalogItem(context.read<FirebaseFirestore>(), newDesign);
+      await CatalogService.createDesignCatalogItem(firestore, newDesign);
       await _loadData();
       
       _nameController.clear();
@@ -104,6 +126,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
       });
       _loadData();
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Design "${newDesign.name}" created.')),
@@ -146,7 +169,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
                     validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                   ),
                   DropdownButtonFormField<String?>(
-                    value: _selectedCollectionId,
+                    initialValue: _selectedCollectionId,
                     decoration: const InputDecoration(labelText: 'Collection'),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('None (Orphaned)')),
@@ -166,14 +189,17 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
                       selected: _selectedTypes.contains(type),
                       onSelected: (val) {
                         setDialogState(() {
-                          if (val) _selectedTypes.add(type);
-                          else _selectedTypes.remove(type);
+                          if (val) {
+                            _selectedTypes.add(type);
+                          } else {
+                            _selectedTypes.remove(type);
+                          }
                         });
                       },
                     )).toList(),
                   ),
                   DropdownButtonFormField<String>(
-                    value: _selectedCategory,
+                    initialValue: _selectedCategory,
                     decoration: const InputDecoration(labelText: 'Category'),
                     items: const [
                       DropdownMenuItem(value: 'individual', child: Text('Individual Item')),
@@ -250,6 +276,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           TextButton(
             onPressed: () async {
+              final firestore = context.read<FirebaseFirestore>();
               // 1. Delete associated StoreItems globally
               final deletedStoreItemIds = dummyStoreItems.where((i) => i.designCatalogId == design.id).map((i) => i.id).toList();
               dummyStoreItems.removeWhere((i) => i.designCatalogId == design.id);
@@ -262,11 +289,12 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
               }
               
               // 3. Delete design
-              await CatalogService.deleteDesignCatalogItem(context.read<FirebaseFirestore>(), design.id);
-                await _loadData();
+              await CatalogService.deleteDesignCatalogItem(firestore, design.id);
+              await _loadData();
               
-              Navigator.pop(ctx);
+              if (ctx.mounted) Navigator.pop(ctx);
               _loadData();
+              if (!mounted) return;
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Design deleted and cascaded.')),
@@ -347,7 +375,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
                       validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                     ),
                     DropdownButtonFormField<String?>(
-                      value: _selectedCollectionId,
+                      initialValue: _selectedCollectionId,
                       decoration: const InputDecoration(labelText: 'Collection'),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('None (Orphaned)')),
@@ -368,15 +396,18 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
                         selected: _selectedTypes.contains(type),
                         onSelected: (val) {
                           setState(() {
-                            if (val) _selectedTypes.add(type);
-                            else _selectedTypes.remove(type);
+                            if (val) {
+                              _selectedTypes.add(type);
+                            } else {
+                              _selectedTypes.remove(type);
+                            }
                           });
                         },
                       )).toList(),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _selectedCategory,
+                      initialValue: _selectedCategory,
                       decoration: const InputDecoration(labelText: 'Category'),
                       items: const [
                         DropdownMenuItem(value: 'individual', child: Text('Individual Item')),
@@ -409,13 +440,13 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed: _pickImage,
-                      icon: const Icon(Icons.image),
-                      label: Text(_imagePaths.isEmpty ? 'UPLOAD COVER IMAGE' : 'IMAGE SELECTED'),
+                      onPressed: _isUploadingImage ? null : _pickImage,
+                      icon: _isUploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.image),
+                      label: Text(_isUploadingImage ? 'UPLOADING...' : _imagePaths.isEmpty ? 'UPLOAD COVER IMAGE' : 'IMAGE SELECTED'),
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: _createDesign,
+                      onPressed: _isUploadingImage ? null : _createDesign,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,
@@ -471,7 +502,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
               ),
             ),
           );
-        }).toList(),
+        }),
       ],
     ));
   }

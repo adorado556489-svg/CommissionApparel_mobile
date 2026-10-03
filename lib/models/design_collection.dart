@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// "Football"). Admin manages collections via the catalog management UI.
 class DesignCollection {
   final String id;
+  final String? coachId; // FK -> User (coach)
   final String name;
   final String? imagePath;
   final int sortOrder;
@@ -13,6 +14,7 @@ class DesignCollection {
   final DateTime updatedAt;
 
   const DesignCollection({
+    this.coachId,
     required this.id,
     required this.name,
     this.imagePath,
@@ -25,6 +27,7 @@ class DesignCollection {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     return DesignCollection(
       id: doc.id,
+      coachId: data['coachId'],
       name: data['name'] ?? '',
       imagePath: data['imagePath'],
       sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
@@ -35,6 +38,7 @@ class DesignCollection {
 
   Map<String, dynamic> toFirestore() {
     return {
+      'coachId': coachId,
       'name': name,
       'imagePath': imagePath,
       'sortOrder': sortOrder,
@@ -45,6 +49,7 @@ class DesignCollection {
 
   DesignCollection copyWith({
     String? id,
+    String? coachId,
     String? name,
     String? imagePath,
     int? sortOrder,
@@ -53,6 +58,7 @@ class DesignCollection {
   }) {
     return DesignCollection(
       id: id ?? this.id,
+      coachId: coachId ?? this.coachId,
       name: name ?? this.name,
       imagePath: imagePath ?? this.imagePath,
       sortOrder: sortOrder ?? this.sortOrder,

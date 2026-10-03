@@ -1,7 +1,6 @@
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'helpers/test_seeder.dart';
 
-import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,7 +8,6 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:commission_apparel_flutter/app/theme.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
-import 'fixtures/dummy_users.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/screens/coach/coach_dashboard_screen.dart';
 
@@ -42,7 +40,6 @@ void main() {
       auth = AuthService(firestore: fakeFirestore, firebaseAuth: MockFirebaseAuth(mockUser: MockUser(uid: 'user-coach-1', email: 'coach@example.com')));
       await auth.login('coach@example.com', 'password123');
       await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
-      print('TEST: CURRENT USER IS ${auth.currentUser?.id}');
       await tester.pumpWidget(createTestApp(const CoachDashboardScreen(), auth, fakeFirestore));
       await tester.pumpAndSettle();
 
@@ -110,7 +107,7 @@ void main() {
       final textFields = find.byType(TextField);
       expect(textFields, findsWidgets);
 
-      await tester.enterText(textFields.first, '0');
+      await tester.enterText(textFields.last, '0');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
 
@@ -118,7 +115,7 @@ void main() {
       
       await tester.pump(const Duration(seconds: 4));
 
-      await tester.enterText(textFields.first, '999.0');
+      await tester.enterText(textFields.last, '999.0');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(find.text('Retail price cannot be less than wholesale price.'), findsNothing);
@@ -148,7 +145,13 @@ void main() {
       
       await tester.ensureVisible(find.text('SUBMIT MASTER ORDER'));
       await tester.tap(find.text('SUBMIT MASTER ORDER'));
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+      
+      // Handle unpaid orders warning dialog introduced in Phase 5B
+      if (find.text('SUBMIT ANYWAY').evaluate().isNotEmpty) {
+        await tester.tap(find.text('SUBMIT ANYWAY'));
+        await tester.pumpAndSettle();
+      }
       
       expect(find.text('Master order submitted successfully!'), findsOneWidget);
       

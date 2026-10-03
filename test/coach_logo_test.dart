@@ -8,17 +8,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
-import 'package:commission_apparel_flutter/screens/public/store_search_screen.dart';
 import 'package:commission_apparel_flutter/screens/public/store_detail_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/services.dart';
 
-import 'fixtures/dummy_users.dart';
-import 'fixtures/dummy_stores.dart';
-import 'fixtures/dummy_orders.dart';
-import 'fixtures/dummy_catalog.dart';
-import 'fixtures/dummy_content.dart';
-import 'package:firebase_core_platform_interface/firebase_core_platform_interface.dart';
 import 'package:firebase_core_platform_interface/src/pigeon/test_api.dart';
 import 'package:firebase_core_platform_interface/src/pigeon/messages.pigeon.dart';
 

@@ -6,14 +6,7 @@ import 'package:commission_apparel_flutter/services/content_service.dart';
 import 'package:commission_apparel_flutter/models/site_setting.dart';
 import 'package:commission_apparel_flutter/models/testimonial.dart';
 import 'package:commission_apparel_flutter/models/quote_request.dart';
-import 'package:commission_apparel_flutter/constants/firestore_paths.dart';
 
-import 'fixtures/dummy_users.dart';
-import 'fixtures/dummy_stores.dart';
-import 'fixtures/dummy_orders.dart';
-import 'fixtures/dummy_catalog.dart';
-import 'fixtures/dummy_content.dart';
-import 'fixtures/dummy_quotes.dart';
 
 void main() {
   TestSeeder.populateDummyFallbacks();

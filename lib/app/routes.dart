@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import '../models/user.dart';
-import '../screens/public/home_screen.dart';
+import '../screens/public/splash_screen.dart';
 import '../screens/public/quote_screen.dart';
 import '../screens/public/quote_success_screen.dart';
 import '../screens/public/catalog_screen.dart';
@@ -28,14 +27,19 @@ import '../screens/user/user_dashboard_screen.dart';
 import '../screens/user/orders_history_screen.dart';
 import '../screens/user/notifications_screen.dart';
 import '../screens/user/account_screen.dart';
+import '../screens/user/settings_screen.dart';
+import '../screens/user/help_support_screen.dart';
+import '../screens/user/open_store_request_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
 
-  static const String home = '/';
+  static const String splash = '/';
+  static const String home = '/home';
   static const String login = '/login';
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
+  static const String openStoreRequest = '/user/open-store-request';
   
   static const String catalog = '/catalog';
   static const String catalogCollection = '/catalog/collection';
@@ -48,6 +52,8 @@ class AppRoutes {
   static const String orders = '/orders';
   static const String notifications = '/notifications';
   static const String account = '/account';
+  static const String settings = '/account/settings';
+  static const String help = '/account/help';
 
   static const String coachDashboard = '/coach/dashboard';
   static const String coachOrderEdit = '/coach/order/edit';
@@ -73,32 +79,36 @@ class AppRoutes {
     );
   }
 
-  static Widget _buildScreen(RouteSettings settings) {
-    switch (settings.name) {
+  static Widget _buildScreen(RouteSettings routeSettings) {
+    switch (routeSettings.name) {
+      case splash: return const SplashScreen();
       case home: return const UserDashboardScreen();
       case login: return const LoginScreen();
       case register: return const RegisterScreen();
       case forgotPassword: return const ForgotPasswordScreen();
+      case openStoreRequest: return const OpenStoreRequestScreen();
       case catalog: return const CatalogScreen();
-      case catalogCollection: return CatalogCollectionScreen(collectionId: settings.arguments as String);
+      case catalogCollection: return CatalogCollectionScreen(collectionId: routeSettings.arguments as String);
       case storeSearch: return const StoreSearchScreen();
-      case storeDetail: return StoreDetailScreen(storeId: settings.arguments as String);
-      case storeOrder: return ParentOrderFormScreen(storeId: settings.arguments as String);
+      case storeDetail: return StoreDetailScreen(storeId: routeSettings.arguments as String);
+      case storeOrder: return ParentOrderFormScreen(storeId: routeSettings.arguments as String);
       case quote: return const QuoteScreen();
       case quoteSuccess: return const QuoteSuccessScreen();
       case orders: return const OrdersHistoryScreen();
       case notifications: return const NotificationsScreen();
       case account: return const AccountScreen();
+      case settings: return const SettingsScreen();
+      case help: return const HelpSupportScreen();
       case coachDashboard: return const CoachDashboardScreen();
-      case coachOrderEdit: return CoachOrderEditScreen(orderId: settings.arguments as String);
+      case coachOrderEdit: return CoachOrderEditScreen(orderId: routeSettings.arguments as String);
       case coachDirectOrderSubmit: return const DirectOrderFormScreen();
       case adminDashboard: return const AdminDashboardScreen();
-      case adminCoachEdit: return AdminCoachEditScreen(coachId: settings.arguments as String);
-      case adminBatchShow: return AdminBatchShowScreen(batchId: settings.arguments as String);
+      case adminCoachEdit: return AdminCoachEditScreen(coachId: routeSettings.arguments as String);
+      case adminBatchShow: return AdminBatchShowScreen(batchId: routeSettings.arguments as String);
       case adminTestimonials: return const AdminTestimonialsScreen();
       case adminQuotes: return const AdminQuotesScreen();
       case adminLandingCollections: return const AdminLandingCollectionsScreen();
-      case adminStoreEdit: return AdminStoreEditScreen(storeId: settings.arguments as String);
+      case adminStoreEdit: return AdminStoreEditScreen(storeId: routeSettings.arguments as String);
       default:
         return const Scaffold(
           body: Center(child: Text('404 - Page not found')),
@@ -115,6 +125,8 @@ class _RouteGuard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (settings.name == AppRoutes.splash) return child;
+
     final auth = context.watch<AuthService>();
     if (auth.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -130,6 +142,7 @@ class _RouteGuard extends StatelessWidget {
     ];
     final requireAuthRoutes = [
       AppRoutes.home,
+      AppRoutes.openStoreRequest,
       AppRoutes.orders,
       AppRoutes.notifications,
       AppRoutes.account,
@@ -153,7 +166,7 @@ class _RouteGuard extends StatelessWidget {
     }
 
     if (settings.name?.startsWith('/coach') == true) {
-      if (!isAuth || (role != UserRole.coach && role != UserRole.admin)) {
+      if (!isAuth || (role != UserRole.coach && role != UserRole.admin && !auth.hasApprovedStore)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.of(context).pushReplacementNamed(AppRoutes.login);
         });

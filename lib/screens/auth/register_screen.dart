@@ -61,20 +61,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (error == null) {
       // Registration auto-logs in the user and makes them active
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(auth.dashboardRoute);
     } else {
       setState(() => _errorMessage = error);
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _errorMessage = null);
+    try {
+      final auth = context.read<AuthService>();
+      final user = await auth.signInWithGoogle();
+      if (user != null) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacementNamed(auth.dashboardRoute);
+      }
+    } catch (e) {
+      setState(() => _errorMessage = 'Google Sign-In failed or was canceled.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: isDark ? AppTheme.background : AppTheme.lightBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Coach Registration'),
+        title: const Text('Create Account'),
       ),
       body: SafeArea(
         child: Center(
@@ -86,7 +103,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Icon(Icons.person_add_alt_1, size: 48, color: AppTheme.primary),
                 const SizedBox(height: 16),
                 Text(
-                  'Create Your Coach Account',
+                  'Create Your Account',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 32),
@@ -202,6 +219,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ElevatedButton(
                           onPressed: _submit,
                           child: const Text('Register Account'),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Theme.of(context).dividerColor)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                'OR',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Theme.of(context).dividerColor)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.g_mobiledata, size: 28),
+                          label: const Text('Continue with Google'),
+                          onPressed: _handleGoogleSignIn,
                         ),
                       ],
                     ),

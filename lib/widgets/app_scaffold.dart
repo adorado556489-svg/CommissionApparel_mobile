@@ -13,7 +13,7 @@ import 'app_nav_bar.dart';
 class AppScaffold extends StatelessWidget {
   final String title;
   final Widget body;
-  final int currentNavIndex;
+  final int? currentNavIndex;
   final List<Widget>? actions;
   final FloatingActionButton? floatingActionButton;
   final bool showNavBar;
@@ -23,12 +23,26 @@ class AppScaffold extends StatelessWidget {
     super.key,
     required this.title,
     required this.body,
-    this.currentNavIndex = 0,
+    this.currentNavIndex,
     this.actions,
     this.floatingActionButton,
     this.showNavBar = true,
     this.showAppBar = true,
   });
+
+  int _resolveIndex(BuildContext context, AuthService auth) {
+    final route = ModalRoute.of(context)?.settings.name;
+    final int idx = AppNavBar.indexForRoute(route, auth);
+    if (idx >= 0) return idx;
+
+    if (currentNavIndex != null) {
+      final itemsCount = AppNavBar.itemCount(auth);
+      if (itemsCount > 0 && currentNavIndex! < itemsCount) {
+        return currentNavIndex!;
+      }
+    }
+    return 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,22 +54,30 @@ class AppScaffold extends StatelessWidget {
               ? AppBar(
                 title: Text(title),
                 actions: [
-                  if (auth.isAuthenticated)
-                    IconButton(
-                      icon: const Icon(Icons.logout),
-                      tooltip: 'Logout',
-                      onPressed: () {
-                        auth.logout();
-                        Navigator.of(context).pushReplacementNamed('/');
-                      },
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ...?actions,
+                        if (auth.isAuthenticated)
+                          IconButton(
+                            icon: const Icon(Icons.logout),
+                            tooltip: 'Logout',
+                            onPressed: () {
+                              auth.logout();
+                              Navigator.of(context).pushReplacementNamed('/');
+                            },
+                          ),
+                      ],
                     ),
-                  ...?actions,
+                  ),
                 ],
               )
               : null,
       body: body,
       bottomNavigationBar:
-          showNavBar ? AppNavBar(currentIndex: currentNavIndex) : null,
+          showNavBar ? AppNavBar(currentIndex: _resolveIndex(context, auth)) : null,
       floatingActionButton: floatingActionButton,
     );
   }

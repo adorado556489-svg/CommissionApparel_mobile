@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../app/theme.dart';
 import '../../widgets/app_scaffold.dart';
-import '../../widgets/glass_panel.dart';
 import '../../models/team_store.dart';
 import '../../models/user.dart';
 import '../../services/store_service.dart';

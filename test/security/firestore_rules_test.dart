@@ -15,7 +15,6 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
 import 'package:commission_apparel_flutter/models/parent_order.dart';
-import 'package:commission_apparel_flutter/models/notification_item.dart';
 import 'package:commission_apparel_flutter/services/order_service.dart';
 import 'package:commission_apparel_flutter/services/store_service.dart';
 import 'package:commission_apparel_flutter/services/content_service.dart';
@@ -58,7 +57,7 @@ void main() {
       expect(doc.data()!['role'], 'coach');
     });
 
-    test('1c. New user registration must use role=coach (rule contract)', () {
+    test('1c. New user registration can use role=coach or parent (rule contract)', () {
       // The rule requires: request.resource.data.role == 'coach'
       // Service-level: AuthService.register() hardcodes role: UserRole.coach
       final newUser = User(

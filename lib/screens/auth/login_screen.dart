@@ -43,16 +43,37 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (error == null) {
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(auth.dashboardRoute);
     } else {
       setState(() => _errorMessage = error);
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _errorMessage = null);
+    final auth = context.read<AuthService>();
+    try {
+      final user = await auth.signInWithGoogle();
+      if (!mounted) return;
+      if (user != null) {
+        Navigator.of(context).pushReplacementNamed(auth.dashboardRoute);
+      } else {
+        setState(() => _errorMessage =
+            'Google Sign-In could not complete. Please try email login.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = 'Google Sign-In error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: isDark ? AppTheme.background : AppTheme.lightBackground,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -61,18 +82,25 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // ── Logo / Branding ────────────────────────────────────
-                Icon(Icons.checkroom, size: 56, color: AppTheme.primary),
-                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.checkroom, size: 48, color: Colors.white),
+                ),
+                const SizedBox(height: 16),
                 Text(
                   'Commission Apparel',
-                  style: Theme.of(context).textTheme.headlineSmall,
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Sign in to your account',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
                 // ── Login Form ─────────────────────────────────────────
                 GlassPanel(
@@ -122,15 +150,35 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: const TextStyle(color: AppTheme.error),
                           ),
                         ],
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: _submit,
                           child: const Text('Sign In'),
                         ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Theme.of(context).dividerColor)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                'OR',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Theme.of(context).dividerColor)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.g_mobiledata, size: 28),
+                          label: const Text('Continue with Google'),
+                          onPressed: _handleGoogleSignIn,
+                        ),
                         const SizedBox(height: 12),
                         TextButton(
                           onPressed: () => Navigator.of(context).pushNamed('/register'),
-                          child: const Text('Register as Coach'),
+                          child: const Text('Create an Account'),
                         ),
                       ],
                     ),
@@ -178,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextButton.icon(
                   onPressed:
                       () =>
-                          Navigator.of(context).pushReplacementNamed('/'),
+                          Navigator.of(context).pushReplacementNamed('/home'),
                   icon: const Icon(Icons.arrow_back, size: 18),
                   label: const Text('Back to Home'),
                 ),

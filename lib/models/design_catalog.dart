@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Coaches add catalog items to their stores as [StoreItem]s.
 class DesignCatalog {
   final String id;
+  final String? coachId; // FK -> User (coach)
   final String? designCollectionId; // FK -> DesignCollection
   final String name;
   final String? description;
@@ -24,6 +25,7 @@ class DesignCatalog {
   final DateTime updatedAt;
 
   const DesignCatalog({
+    this.coachId,
     required this.id,
     this.designCollectionId,
     required this.name,
@@ -47,6 +49,7 @@ class DesignCatalog {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     return DesignCatalog(
       id: doc.id,
+      coachId: data['coachId'],
       designCollectionId: data['designCollectionId'],
       name: data['name'] ?? '',
       description: data['description'],
@@ -68,6 +71,7 @@ class DesignCatalog {
 
   Map<String, dynamic> toFirestore() {
     return {
+      'coachId': coachId,
       'designCollectionId': designCollectionId,
       'name': name,
       'description': description,
@@ -132,6 +136,7 @@ class DesignCatalog {
 
   DesignCatalog copyWith({
     String? id,
+    String? coachId,
     String? designCollectionId,
     String? name,
     String? description,
@@ -152,6 +157,7 @@ class DesignCatalog {
   }) {
     return DesignCatalog(
       id: id ?? this.id,
+      coachId: coachId ?? this.coachId,
       designCollectionId: clearCollectionId ? null : (designCollectionId ?? this.designCollectionId),
       name: name ?? this.name,
       description: description ?? this.description,

@@ -26,6 +26,7 @@ class ParentOrder {
   final double totalRetailPrice;
   final String? batchId; // UUID grouping finalized orders
   final bool isArchived;
+  final bool isPaid; // Tracks if the coach has collected payment
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -47,6 +48,7 @@ class ParentOrder {
     this.totalRetailPrice = 0.0,
     this.batchId,
     this.isArchived = false,
+    this.isPaid = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -74,6 +76,7 @@ class ParentOrder {
       totalRetailPrice: (data['totalRetailPrice'] as num?)?.toDouble() ?? 0.0,
       batchId: data['batchId'],
       isArchived: data['isArchived'] ?? false,
+      isPaid: data['isPaid'] ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -97,6 +100,7 @@ class ParentOrder {
       'totalRetailPrice': totalRetailPrice,
       'batchId': batchId,
       'isArchived': isArchived,
+      'isPaid': isPaid,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -132,8 +136,8 @@ class ParentOrder {
 
   static BatchFinancials calculateBatchFinancials({
     required List<ParentOrder> orders,
-    required Map<String, double> retailPrices,
-    required Map<String, double> wholesalePrices,
+    Map<String, double>? retailPrices, // Legacy fallback
+    Map<String, double>? wholesalePrices, // Legacy fallback
   }) {
     double totalSales = 0;
     double totalWholesaleCost = 0;
@@ -142,7 +146,8 @@ class ParentOrder {
     for (final order in orders) {
       totalSales += order.totalRetailPrice;
       for (final entry in order.itemEntries) {
-        final wholesale = wholesalePrices[entry.storeItemId] ?? 0;
+        // Use snapshot price if > 0, else fallback to legacy maps
+        final wholesale = entry.wholesalePrice > 0 ? entry.wholesalePrice : (wholesalePrices?[entry.storeItemId] ?? 0);
         totalWholesaleCost += wholesale * entry.quantity;
         totalItemsSold += entry.quantity;
       }
@@ -218,6 +223,8 @@ class OrderItemEntry {
   final List<String> types; // garment types: ['Jersey', 'Shorts']
   final Map<String, String> sizes; // type -> selected size, e.g. {'Jersey': 'L'}
   final int quantity;
+  final double retailPrice;
+  final double wholesalePrice;
   final List<OrderItemComponent> components; // sub-items for packages
 
   const OrderItemEntry({
@@ -226,6 +233,8 @@ class OrderItemEntry {
     this.types = const [],
     this.sizes = const {},
     this.quantity = 1,
+    this.retailPrice = 0.0,
+    this.wholesalePrice = 0.0,
     this.components = const [],
   });
 
@@ -236,6 +245,8 @@ class OrderItemEntry {
       types: List<String>.from(map['types'] ?? []),
       sizes: Map<String, String>.from(map['sizes'] ?? {}),
       quantity: map['quantity'] ?? 1,
+      retailPrice: (map['retailPrice'] as num?)?.toDouble() ?? 0.0,
+      wholesalePrice: (map['wholesalePrice'] as num?)?.toDouble() ?? 0.0,
       components: (map['components'] as List<dynamic>? ?? [])
           .map((c) => OrderItemComponent.fromMap(c as Map<String, dynamic>))
           .toList(),
@@ -249,6 +260,8 @@ class OrderItemEntry {
       'types': types,
       'sizes': sizes,
       'quantity': quantity,
+      'retailPrice': retailPrice,
+      'wholesalePrice': wholesalePrice,
       'components': components.map((c) => c.toMap()).toList(),
     };
   }
@@ -310,6 +323,6 @@ class BatchFinancials {
 
   @override
   String toString() =>
-      'BatchFinancials(sales=\, net=\, '
-      'items=\, orders=\)';
+      'BatchFinancials(sales=, net=, '
+      'items=, orders=)';
 }

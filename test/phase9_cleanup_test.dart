@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
 import 'package:commission_apparel_flutter/models/team_store.dart';
 import 'package:commission_apparel_flutter/models/parent_order.dart';
@@ -51,9 +50,13 @@ void main() {
         // SIMULATE CLOUD FUNCTION
         await StoreService.deleteStoreForCoach(firestore, coach.id);
         final qs1 = await firestore.collection('parentOrders').where('userId', isEqualTo: coach.id).get();
-        for (var doc in qs1.docs) await doc.reference.delete();
+        for (var doc in qs1.docs) {
+          await doc.reference.delete();
+        }
         final qs2 = await firestore.collection('parentOrders').where('teamStoreId', isEqualTo: store.id).get();
-        for (var doc in qs2.docs) await doc.reference.delete();
+        for (var doc in qs2.docs) {
+          await doc.reference.delete();
+        }
 
         final uDoc = await firestore.collection('users').doc(coach.id).get();
         expect(uDoc.exists, isFalse);

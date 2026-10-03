@@ -22,12 +22,25 @@ class GlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final panelColor = isDark ? AppTheme.surfaceGlass : AppTheme.lightSurface;
+    final borderColor = isDark ? AppTheme.borderGlass : AppTheme.lightBorder;
+
     return Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: AppTheme.surfaceGlass,
+        color: panelColor,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: AppTheme.borderGlass),
+        border: Border.all(color: borderColor),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0x0D000000), // Black at ~5% opacity
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),

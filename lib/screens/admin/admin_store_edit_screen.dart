@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:image_picker/image_picker.dart';
+import 'package:cloudinary_public/cloudinary_public.dart';
+
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/glass_panel.dart';
 import '../../app/theme.dart';
@@ -28,6 +30,7 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
   
   // Pricing controllers map: ItemId -> [WholesaleController, RetailController]
   final Map<String, List<TextEditingController>> _pricingControllers = {};
+  
 
   @override
   void initState() {
@@ -65,25 +68,45 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
     super.dispose();
   }
 
+  bool _isUploadingCover = false;
+
   Future<void> _pickCoverImage() async {
+    final firestore = context.read<FirebaseFirestore>();
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      final firestore = context.read<FirebaseFirestore>();
-      await StoreService.updateStore(firestore, _store.copyWith(coverImagePath: image.path));
-      await _loadStoreData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cover image updated.')));
+      setState(() {
+        _isUploadingCover = true;
+      });
+      try {
+        final cloudinary = CloudinaryPublic('brtamhix', 'commission_apparel', cache: false);
+        CloudinaryResponse response = await cloudinary.uploadFile(
+          CloudinaryFile.fromFile(image.path, resourceType: CloudinaryResourceType.Image),
+        );
+        await StoreService.updateStore(firestore, _store.copyWith(coverImagePath: response.secureUrl));
+        await _loadStoreData();
+        if (mounted) {
+          setState(() {
+            _isUploadingCover = false;
+          });
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cover image updated.')));
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isUploadingCover = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+        }
       }
     }
   }
-
   Future<void> _toggleArchive() async {
     final firestore = context.read<FirebaseFirestore>();
     await StoreService.updateStore(firestore, _store.copyWith(isArchived: !_store.isArchived));
     await _loadStoreData();
     if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      setState(() { _isUploadingCover = false; }); ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_store.isArchived ? 'Store archived.' : 'Store unarchived.')));
     }
   }
@@ -99,7 +122,7 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
     }
     await _loadStoreData();
     if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      setState(() { _isUploadingCover = false; }); ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Store item pricing updated.')));
     }
   }
@@ -114,8 +137,8 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
       name: design.name,
       types: design.types,
       imagePaths: design.imagePaths,
-      wholesalePrice: design.wholesalePrice ?? 15.0,
-      retailPrice: design.wholesalePrice ?? 20.0,
+      wholesalePrice: design.wholesalePrice,
+      retailPrice: design.wholesalePrice + 5.0,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       sortOrder: 0,
@@ -124,7 +147,7 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
     await StoreService.createStoreItem(firestore, newItem);
     await _loadStoreData();
     if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      setState(() { _isUploadingCover = false; }); ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item added to store.')));
     }
   }
@@ -134,7 +157,7 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
     await StoreService.deleteStoreItem(firestore, itemId);
     await _loadStoreData();
     if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      setState(() { _isUploadingCover = false; }); ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item removed.')));
     }
   }
@@ -186,8 +209,8 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
                     ),
                   const SizedBox(height: 8),
                   ElevatedButton(
-                    onPressed: _pickCoverImage,
-                    child: const Text('UPDATE COVER IMAGE'),
+                    onPressed: _isUploadingCover ? null : _pickCoverImage,
+                    child: Text(_isUploadingCover ? 'UPLOADING...' : 'UPDATE COVER IMAGE'),
                   ),
                 ],
               ),
@@ -312,4 +335,9 @@ class _AdminStoreEditScreenState extends State<AdminStoreEditScreen> {
     );
   }
 }
+
+
+
+
+
 

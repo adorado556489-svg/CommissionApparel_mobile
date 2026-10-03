@@ -18,7 +18,8 @@ dependencies:
   firebase_auth: ^6.7.0
   cloud_firestore: ^6.10.0
   firebase_storage: ^13.6.0
-  google_sign_in: ^7.2.0
+  google_sign_in: ^6.2.2
+  cloudinary_public: ^0.23.1
 
 dev_dependencies:
   flutter_test:
@@ -28,6 +29,8 @@ dev_dependencies:
   fake_cloud_firestore: ^4.3.0
   firebase_storage_mocks: ^0.8.1
 
+  firebase_core_platform_interface: any
+  http: any
 flutter:
   uses-material-design: true
 

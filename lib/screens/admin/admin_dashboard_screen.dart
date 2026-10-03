@@ -6,7 +6,7 @@ import '../../widgets/app_scaffold.dart';
 import '../../widgets/glass_panel.dart';
 import '../../app/theme.dart';
 import '../../data/dummy_stores.dart';
-import '../../data/dummy_users.dart';
+
 import '../../services/order_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/admin_service.dart';
@@ -193,6 +193,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
               id: '', userId: '', name: 'Unknown', slug: '', createdAt: DateTime.now(), updatedAt: DateTime.now()
             ));
 
+            final financials = ParentOrder.calculateBatchFinancials(orders: orders);
+
             return GlassPanel(
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(16),
@@ -201,7 +203,38 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 children: [
                   Text(store.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   Text('Batch: $batchId', style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
-                  Text('${orders.length} Athletes', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${orders.length} Athletes | ${financials.totalItemsSold} Items', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.grey.withAlpha(25), borderRadius: BorderRadius.circular(8)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Gross Revenue', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                            Text('\$${financials.totalSales.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Platform Revenue', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                            Text('\$${financials.totalWholesaleCost.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Coach Comm.', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                            Text('\$${financials.netProceeds.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Row(
                     children: [

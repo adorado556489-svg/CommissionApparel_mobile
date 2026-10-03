@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../fixtures/dummy_users.dart';
 import '../fixtures/dummy_stores.dart';
 import '../fixtures/dummy_catalog.dart';

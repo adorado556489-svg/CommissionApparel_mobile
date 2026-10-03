@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 
-import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'helpers/test_seeder.dart';
 import 'helpers/mock_google_sign_in.dart';
@@ -43,7 +42,7 @@ void main() {
       await Future.delayed(Duration(milliseconds: 100));
       expect(authService.isAuthenticated, isTrue);
       expect(authService.currentUser, isNotNull);
-      expect(authService.currentUser!.role, UserRole.coach); // Default for normal user
+      expect(authService.currentUser!.role, UserRole.parent); // Default for normal user
       expect(authService.currentUser!.status, 'active'); // Does not require approval
 
       final doc = await firestore.collection('users').doc(authService.currentUser!.id).get();

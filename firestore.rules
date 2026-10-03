@@ -41,7 +41,7 @@ service cloud.firestore {
       // The document ID MUST equal the authenticated UID.
       // The role MUST be 'coach' (normal user) — cannot self-assign admin.
       allow create: if isOwner(userId)
-        && request.resource.data.role == 'coach';
+        && request.resource.data.role in ['coach', 'parent'];
 
       // A user may update their own profile, but CANNOT change:
       //   - role (privilege escalation prevention)
@@ -50,9 +50,9 @@ service cloud.firestore {
       // Admin can update any user document.
       allow update: if isAdmin()
         || (isOwner(userId)
-            && request.resource.data.role == resource.data.role
-            && request.resource.data.id == resource.data.id
-            && request.resource.data.assignedDesignIds == resource.data.assignedDesignIds);
+            && request.resource.data.get('role', '') == resource.data.get('role', '')
+            && request.resource.data.get('id', '') == resource.data.get('id', '')
+            && request.resource.data.get('assignedDesignIds', []) == resource.data.get('assignedDesignIds', []));
 
       // Only admin can delete user documents.
       allow delete: if isAdmin();

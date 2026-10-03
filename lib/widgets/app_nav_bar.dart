@@ -1,7 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import '../models/user.dart';
 
 class _NavItem {
   final String label;
@@ -19,18 +18,19 @@ class AppNavBar extends StatelessWidget {
     if (!auth.isAuthenticated) return [];
     if (auth.isAdmin) {
       return const [
-        _NavItem('Home', Icons.home_outlined, '/'),
+        _NavItem('Home', Icons.home_outlined, '/home'),
         _NavItem('Dashboard', Icons.dashboard_outlined, '/admin/dashboard'),
         _NavItem('Catalog', Icons.view_list_outlined, '/catalog'),
         _NavItem('Account', Icons.person_outline, '/account'),
       ];
     }
-    return const [
-      _NavItem('Home', Icons.home_outlined, '/'),
-      _NavItem('My Store', Icons.storefront_outlined, '/coach/dashboard'),
-      _NavItem('Catalog', Icons.view_list_outlined, '/catalog'),
-      _NavItem('Orders', Icons.receipt_long_outlined, '/orders'),
-      _NavItem('Account', Icons.person_outline, '/account'),
+    return [
+      const _NavItem('Home', Icons.home_outlined, '/home'),
+      if (auth.currentRole == UserRole.coach || auth.hasApprovedStore)
+        const _NavItem('My Store', Icons.storefront_outlined, '/coach/dashboard'),
+      const _NavItem('Catalog', Icons.view_list_outlined, '/catalog'),
+      const _NavItem('Orders', Icons.receipt_long_outlined, '/orders'),
+      const _NavItem('Account', Icons.person_outline, '/account'),
     ];
   }
 
@@ -39,13 +39,25 @@ class AppNavBar extends StatelessWidget {
   static String routeForIndex(int index, AuthService auth) {
     final items = _itemsForRole(auth);
     if (index >= 0 && index < items.length) return items[index].route;
-    return '/';
+    return '/home';
   }
 
-  static int indexForRoute(String route, AuthService auth) {
+  static int indexForRoute(String? route, AuthService auth) {
+    if (route == null) return -1;
     final items = _itemsForRole(auth);
-    final idx = items.indexWhere((i) => i.route == route);
-    return idx >= 0 ? idx : 0;
+    int idx = items.indexWhere((i) => i.route == route);
+    if (idx < 0) {
+      if (route.startsWith('/catalog')) {
+        idx = items.indexWhere((i) => i.route == '/catalog');
+      } else if (route.startsWith('/coach')) {
+        idx = items.indexWhere((i) => i.route == '/coach/dashboard');
+      } else if (route.startsWith('/admin')) {
+        idx = items.indexWhere((i) => i.route == '/admin/dashboard');
+      } else if (route.startsWith('/orders')) {
+        idx = items.indexWhere((i) => i.route == '/orders');
+      }
+    }
+    return idx;
   }
 
   @override

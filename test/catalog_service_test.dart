@@ -5,9 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:commission_apparel_flutter/services/catalog_service.dart';
 import 'package:commission_apparel_flutter/models/design_catalog.dart';
-import 'package:commission_apparel_flutter/models/design_collection.dart';
 import 'package:commission_apparel_flutter/constants/firestore_paths.dart';
-import 'fixtures/dummy_catalog.dart';
 
 class ThrowingMockFirestore implements FirebaseFirestore {
   @override

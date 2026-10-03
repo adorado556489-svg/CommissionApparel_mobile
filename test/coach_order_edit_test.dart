@@ -3,11 +3,9 @@ import 'helpers/test_seeder.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/services/order_service.dart';
-import 'fixtures/dummy_orders.dart';
 import 'package:commission_apparel_flutter/models/parent_order.dart';
 
 void main() {
@@ -29,7 +27,9 @@ void main() {
       final authService = createAuthFor('coach@example.com', 'user-coach-1');
       await authService.login('coach@example.com', 'password123');
       await tester.pumpAndSettle(); // Allow async auth state changes
-      while (authService.currentUser == null) await tester.pump(const Duration(milliseconds: 10));
+      while (authService.currentUser == null) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
       final coach = authService.currentUser!;
 
       final doc = await fakeFirestore.collection('parentOrders').doc('order-4').get();
@@ -59,7 +59,9 @@ void main() {
       final authService = createAuthFor('coach@example.com', 'user-coach-1');
       await authService.login('coach@example.com', 'password123');
       await tester.pumpAndSettle();
-      while (authService.currentUser == null) await tester.pump(const Duration(milliseconds: 10));
+      while (authService.currentUser == null) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
       final coach = authService.currentUser!;
       
       final snapshotBefore = await fakeFirestore.collection('parentOrders').get();

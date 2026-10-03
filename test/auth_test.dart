@@ -1,4 +1,4 @@
-﻿import 'helpers/auto_seeding_mock_auth.dart';
+import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
@@ -47,7 +47,7 @@ void main() {
       expect(error, isNull);
       expect(authService.isAuthenticated, isTrue);
       expect(authService.isParent, isTrue);
-      expect(authService.dashboardRoute, '/');
+      expect(authService.dashboardRoute, '/home');
     });
 
     test('Invalid email/password login', () async {

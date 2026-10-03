@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -15,11 +16,9 @@ class AuthService extends ChangeNotifier {
 
   AuthService({
     fb.FirebaseAuth? firebaseAuth,
-    required FirebaseFirestore firestore,
-    dynamic googleSignIn,
-  })  : _auth = firebaseAuth ?? fb.FirebaseAuth.instance,
-        _firestore = firestore,
-        _googleSignIn = googleSignIn {
+    required this._firestore,
+    this._googleSignIn,
+  })  : _auth = firebaseAuth ?? fb.FirebaseAuth.instance {
     _init();
   }
 
@@ -36,39 +35,104 @@ class AuthService extends ChangeNotifier {
     switch (currentRole) {
       case UserRole.admin: return '/admin/dashboard';
       case UserRole.coach: return '/coach/dashboard';
-      case UserRole.parent: return '/';
-      default: return '/';
+      case UserRole.parent: return '/home';
+      default: return '/home';
     }
   }
 
+  StreamSubscription<DocumentSnapshot>? _userDocSub;
+  StreamSubscription<QuerySnapshot>? _storeSub;
+  bool _hasApprovedStore = false;
+  
+  bool get hasApprovedStore => _hasApprovedStore;
+
   void _init() {
-    _auth.authStateChanges().listen((fbUser) async {
+    _auth.authStateChanges().listen((fbUser) {
       _isLoading = true;
       notifyListeners();
       
+      _userDocSub?.cancel();
+      _userDocSub = null;
+      _storeSub?.cancel();
+      _storeSub = null;
+      _hasApprovedStore = false;
+      
       if (fbUser == null) {
         _currentUser = null;
+        _isLoading = false;
+        notifyListeners();
       } else {
-        await _loadUser(fbUser.uid);
+        _userDocSub = _firestore.collection(FirestorePaths.users).doc(fbUser.uid).snapshots().listen((doc) {
+          if (doc.exists) {
+            _currentUser = User.fromFirestore(doc);
+            debugPrint('AUTH: User updated via stream');
+          } else {
+            _currentUser = null;
+          }
+          _isLoading = false;
+          notifyListeners();
+        });
+        
+        _storeSub = _firestore.collection(FirestorePaths.teamStores)
+            .where('userId', isEqualTo: fbUser.uid)
+            .where('status', isEqualTo: 'approved')
+            .where('isArchived', isEqualTo: false)
+            .snapshots().listen((snapshot) {
+          _hasApprovedStore = snapshot.docs.isNotEmpty;
+          debugPrint('AUTH: hasApprovedStore updated');
+          notifyListeners();
+        });
       }
-      
-      _isLoading = false;
-      notifyListeners();
     });
   }
 
-  Future<void> _loadUser(String uid) async {
+  Future<String?> updateProfileDetails(String firstName, String lastName) async {
     try {
-      final doc = await _firestore.collection(FirestorePaths.users).doc(uid).get();
-      if (doc.exists) {
-        _currentUser = User.fromFirestore(doc);
-            print('AUTH: User set to ${_currentUser?.id}');
-      } else {
-        _currentUser = null;
-      }
+      final user = _currentUser;
+      final fbUser = _auth.currentUser;
+      if (user == null || fbUser == null) return 'User not logged in.';
+
+      await _firestore.collection(FirestorePaths.users).doc(user.id).update({
+        'firstName': firstName,
+        'lastName': lastName,
+        'updatedAt': DateTime.now(),
+      });
+
+      await fbUser.updateDisplayName('$firstName $lastName');
+      return null;
     } catch (e) {
-      debugPrint('Error loading user: $e');
-      _currentUser = null;
+      return 'Failed to update name: $e';
+    }
+  }
+
+  Future<String?> updateEmailAddress(String newEmail) async {
+    try {
+      final user = _currentUser;
+      final fbUser = _auth.currentUser;
+      if (user == null || fbUser == null) return 'User not logged in.';
+
+      await fbUser.verifyBeforeUpdateEmail(newEmail);
+
+      await _firestore.collection(FirestorePaths.users).doc(user.id).update({
+        'email': newEmail,
+        'updatedAt': DateTime.now(),
+      });
+
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  Future<String?> sendPasswordResetToCurrentEmail() async {
+    try {
+      final fbUser = _auth.currentUser;
+      if (fbUser == null || fbUser.email == null) return 'User not logged in or missing email.';
+      
+      await _auth.sendPasswordResetEmail(email: fbUser.email!);
+      return null;
+    } catch (e) {
+      return e.toString();
     }
   }
 

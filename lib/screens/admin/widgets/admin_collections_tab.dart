@@ -3,7 +3,6 @@ import '../../../app/theme.dart';
 import '../../../models/design_collection.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../../data/dummy_catalog.dart';
 import '../../../services/catalog_service.dart';
 
 class AdminCollectionsTab extends StatefulWidget {
@@ -48,12 +47,13 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
         updatedAt: DateTime.now(),
       );
       await CatalogService.createDesignCollection(context.read<FirebaseFirestore>(), newCol);
-        await _loadData();
+      await _loadData();
       
       _nameController.clear();
       _sortOrderController.clear();
       _loadData();
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Collection "${newCol.name}" created.')),
@@ -91,12 +91,13 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
           TextButton(
             onPressed: () async {
               if (_formKey.currentState!.validate()) {
+                final firestore = context.read<FirebaseFirestore>();
                 final updated = col.copyWith(
                   name: _nameController.text,
                   sortOrder: int.tryParse(_sortOrderController.text) ?? 0,
                 );
-                await CatalogService.updateDesignCollection(context.read<FirebaseFirestore>(), updated);
-                if (mounted) {
+                await CatalogService.updateDesignCollection(firestore, updated);
+                if (ctx.mounted) {
                   Navigator.pop(ctx);
                   _nameController.clear();
                   _sortOrderController.clear();
@@ -125,18 +126,20 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           TextButton(
             onPressed: () async {
+              final firestore = context.read<FirebaseFirestore>();
               // 1. Orphan designs
-              final allCatalog = await CatalogService.getAllDesignCatalog(context.read<FirebaseFirestore>());
+              final allCatalog = await CatalogService.getAllDesignCatalog(firestore);
               for (var design in allCatalog) {
                 if (design.designCollectionId == col.id) {
                   final updated = design.copyWith(designCollectionId: null, clearCollectionId: true);
-                  await CatalogService.updateDesignCatalogItem(context.read<FirebaseFirestore>(), updated);
+                  await CatalogService.updateDesignCatalogItem(firestore, updated);
                 }
               }
               // 2. Delete collection
-              await CatalogService.deleteDesignCollection(context.read<FirebaseFirestore>(), col.id);
-              Navigator.pop(ctx);
+              await CatalogService.deleteDesignCollection(firestore, col.id);
+              if (ctx.mounted) Navigator.pop(ctx);
               _loadData();
+              if (!mounted) return;
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Collection deleted.')),
@@ -204,7 +207,7 @@ class _AdminCollectionsTabState extends State<AdminCollectionsTab> {
             ),
             ]),
           ),
-        )).toList(),
+        )),
       ],
     ));
   }

@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,6 +14,8 @@ import '../../widgets/glass_panel.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/storage_service.dart';
+import 'widgets/coach_collections_tab.dart';
+import 'widgets/coach_catalog_tab.dart';
 
 class CoachDashboardScreen extends StatefulWidget {
   const CoachDashboardScreen({super.key});
@@ -23,7 +24,8 @@ class CoachDashboardScreen extends StatefulWidget {
   State<CoachDashboardScreen> createState() => _CoachDashboardScreenState();
 }
 
-class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
+class _CoachDashboardScreenState extends State<CoachDashboardScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   TeamStore? _activeStore;
   bool _isLoading = true;
   List<StoreItem> _storeItems = [];
@@ -34,7 +36,14 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -86,6 +95,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     // In Phase 3, we just pretend it uploads and update the path.
     // "Upload/select store cover image using the existing StorageService".
     // For now, I'll just change the string or wait to see what StorageService has.
+    final firestore = context.read<FirebaseFirestore>();
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
       final storage = StorageService();
@@ -93,7 +103,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
       final url = await storage.uploadFile(path, File(picked.path));
       if (url != null) {
         final store = _activeStore!.copyWith(coverImagePath: url);
-        await StoreService.updateStore(context.read<FirebaseFirestore>(), store);
+        await StoreService.updateStore(firestore, store);
         await _loadData();
       }
     }
@@ -101,6 +111,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
 
   Future<void> _setDeadline() async {
     if (_activeStore == null) return;
+    final firestore = context.read<FirebaseFirestore>();
     final date = await showDatePicker(
       context: context,
       initialDate: _activeStore!.orderDeadline ?? DateTime.now().add(const Duration(days: 7)),
@@ -110,7 +121,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     );
     if (date != null) {
       final store = _activeStore!.copyWith(orderDeadline: date);
-      await StoreService.updateStore(context.read<FirebaseFirestore>(), store);
+      await StoreService.updateStore(firestore, store);
       await _loadData();
     }
   }
@@ -146,13 +157,29 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
 
   Future<void> _submitMasterOrder() async {
     if (_activeStore == null) return;
-    print('SUBMIT MASTER ORDER: length=${_unbatchedOrders.length}');
-      if (_unbatchedOrders.isEmpty) {
+    if (_unbatchedOrders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot submit an empty roster.')));
       return;
     }
+    
     final firestore = context.read<FirebaseFirestore>();
     final user = context.read<AuthService>().currentUser!;
+
+    final unpaidCount = _unbatchedOrders.where((o) => !o.isPaid).length;
+    if (unpaidCount > 0) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Unpaid Orders'),
+          content: Text('Warning: $unpaidCount parent(s) have not been marked as paid yet.\n\nAre you sure you want to submit the master order?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('CANCEL')),
+            ElevatedButton(onPressed: () => Navigator.pop(c, true), child: const Text('SUBMIT ANYWAY')),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
     
     final batchId = 'batch-${DateTime.now().millisecondsSinceEpoch}';
     final error = await OrderService.submitStoreOrdersToAdmin(firestore, user, _activeStore!.id, batchId);
@@ -173,6 +200,26 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     await _loadData();
   }
 
+  Future<void> _togglePaid(ParentOrder order, bool val) async {
+    final firestore = context.read<FirebaseFirestore>();
+    try {
+      await firestore.collection('parentOrders').doc(order.id).update({'isPaid': val});
+      await _loadData(); // refresh UI
+    } catch (e) {
+      debugPrint('Error toggling paid: $e');
+    }
+  }
+
+  Future<void> _savePaymentInstructions(String text) async {
+    if (_activeStore == null) return;
+    final firestore = context.read<FirebaseFirestore>();
+    await StoreService.updateStore(firestore, _activeStore!.copyWith(paymentInstructions: text, updatedAt: DateTime.now()));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment instructions saved.')));
+    }
+    await _loadData();
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthService>().currentUser;
@@ -181,13 +228,43 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     }
     if (_isLoading) return const AppScaffold(title: 'My Store', body: Center(child: CircularProgressIndicator()));
 
+    Widget body = _activeStore == null ? SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: _buildCreateStore(),
+    ) : Column(
+      children: [
+        TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          labelColor: Theme.of(context).primaryColor,
+          unselectedLabelColor: Colors.grey,
+          tabs: const [
+            Tab(text: 'STORE & ORDERS'),
+            Tab(text: 'CUSTOM DESIGNS'),
+            Tab(text: 'COLLECTIONS'),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildStoreManagement(),
+              ),
+              const CoachCatalogTab(),
+              const CoachCollectionsTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+
     return AppScaffold(
       title: 'My Store',
       currentNavIndex: 1, // Phase 2: Index 1 is My Store for User
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: _activeStore == null ? _buildCreateStore() : _buildStoreManagement(),
-      ),
+      body: body,
     );
   }
 
@@ -217,6 +294,36 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
   Widget _buildStoreManagement() {
     final store = _activeStore!;
     
+    double totalSales = 0;
+    double totalCommission = 0;
+    for (final order in _unbatchedOrders) {
+      totalSales += order.totalRetailPrice;
+      for (final entry in order.itemEntries) {
+        StoreItem? storeItem;
+        try {
+          storeItem = _storeItems.firstWhere((i) => i.id == entry.storeItemId);
+        } catch (_) {}
+        if (storeItem != null) {
+          final markup = storeItem.retailPrice - storeItem.wholesalePrice;
+          totalCommission += markup * entry.quantity;
+        }
+      }
+    }
+    
+    Future<void> reopenStore() async {
+      if (_activeStore == null) return;
+      final firestore = context.read<FirebaseFirestore>();
+      final updatedStore = _activeStore!.copyWith(
+        status: 'approved',
+        updatedAt: DateTime.now(),
+      );
+      await StoreService.updateStore(firestore, updatedStore);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Store reopened for a new campaign!')));
+      }
+      await _loadData();
+    }
+
     if (store.isLocked) {
       return GlassPanel(
         child: Column(
@@ -226,6 +333,12 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
             const Text('LOCKED', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             const Text('MASTER ORDER SUBMITTED', style: TextStyle(color: Colors.red, fontSize: 18)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: reopenStore,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Re-open Store for New Campaign'),
+            ),
           ],
         ),
       );
@@ -250,6 +363,16 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              TextField(
+                controller: TextEditingController(text: store.paymentInstructions),
+                decoration: const InputDecoration(
+                  labelText: 'Payment Instructions (e.g. "Venmo @CoachSmith")',
+                  hintText: 'Tell parents how to pay you',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: _savePaymentInstructions,
+              ),
+              const SizedBox(height: 16),
               ElevatedButton(onPressed: _pickCoverImage, child: const Text('UPDATE COVER IMAGE')),
             ],
           ),
@@ -263,15 +386,18 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
               const SizedBox(height: 8),
               ..._assignedDesigns.map((d) {
                 final isAdded = _storeItems.any((i) => i.designCatalogId == d.id);
-                return ListTile(
-                  title: Text(d.name),
-                  subtitle: Text('Wholesale: \$${d.wholesalePrice}'),
-                  trailing: isAdded
-                    ? IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () {
-                        final item = _storeItems.firstWhere((i) => i.designCatalogId == d.id);
-                        _removeStoreItem(item.id);
-                      })
-                    : IconButton(icon: const Icon(Icons.add_circle, color: Colors.green), onPressed: () => _addStoreItem(d)),
+                return Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    title: Text(d.name),
+                    subtitle: Text('Wholesale: \$${d.wholesalePrice}'),
+                    trailing: isAdded
+                      ? IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () {
+                          final item = _storeItems.firstWhere((i) => i.designCatalogId == d.id);
+                          _removeStoreItem(item.id);
+                        })
+                      : IconButton(icon: const Icon(Icons.add_circle, color: Colors.green), onPressed: () => _addStoreItem(d)),
+                  ),
                 );
               }),
               const Divider(),
@@ -301,12 +427,56 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text('Financial Summary', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Total Sales:', style: Theme.of(context).textTheme.bodyLarge),
+                  Text('\$${totalSales.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Commission Earned:', style: Theme.of(context).textTheme.bodyLarge),
+                  Text('\$${totalCommission.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        GlassPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text('Unbatched Orders: ${_unbatchedOrders.length}', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _submitMasterOrder,
                 child: const Text('SUBMIT MASTER ORDER'),
               ),
+              const SizedBox(height: 16),
+              if (_unbatchedOrders.isEmpty)
+                const Text('No pending orders to batch.')
+              else
+                ..._unbatchedOrders.map((o) {
+                  return Material(
+                    color: Colors.transparent,
+                    child: CheckboxListTile(
+                      title: Text(o.athleteName),
+                      subtitle: Text('Total: \$${o.totalRetailPrice.toStringAsFixed(2)}'),
+                      value: o.isPaid,
+                      onChanged: (val) {
+                        if (val != null) _togglePaid(o, val);
+                      },
+                      secondary: const Icon(Icons.person),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  );
+                }),
             ],
           ),
         ),

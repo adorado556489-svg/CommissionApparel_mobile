@@ -4,13 +4,9 @@ import 'helpers/test_seeder.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:commission_apparel_flutter/models/user.dart';
-import 'package:commission_apparel_flutter/models/team_store.dart';
 import 'package:commission_apparel_flutter/models/parent_order.dart';
 import 'package:commission_apparel_flutter/services/order_service.dart';
-import 'package:commission_apparel_flutter/services/auth_service.dart';
-import 'package:commission_apparel_flutter/services/store_service.dart';
 
 void main() {
   late FakeFirebaseFirestore firestore;

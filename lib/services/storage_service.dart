@@ -1,6 +1,8 @@
 
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloudinary_public/cloudinary_public.dart';
 
 class StorageService {
   final FirebaseStorage _storage;
@@ -11,12 +13,12 @@ class StorageService {
   /// Returns null if the upload fails.
   Future<String?> uploadFile(String storagePath, File file) async {
     try {
-      final ref = _storage.ref().child(storagePath);
-      final uploadTask = ref.putFile(file);
-      final snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
+      final cloudinary = CloudinaryPublic('brtamhix', 'commission_apparel', cache: false);
+      CloudinaryResponse response = await cloudinary.uploadFile(CloudinaryFile.fromFile(file.path, resourceType: CloudinaryResourceType.Image));
+      
+      return response.secureUrl;
     } catch (e) {
-      print('StorageService upload error: $e');
+      debugPrint('StorageService upload error: $e');
       return null; // Return null instead of silently converting to dummy data
     }
   }
@@ -38,7 +40,7 @@ class StorageService {
       final ref = _storage.refFromURL(downloadUrl);
       await ref.delete();
     } catch (e) {
-      print('StorageService delete error: $e');
+      debugPrint('StorageService delete error: $e');
     }
   }
 

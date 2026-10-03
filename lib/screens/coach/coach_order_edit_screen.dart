@@ -4,11 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../services/order_service.dart';
 import '../../models/parent_order.dart';
-import '../../models/user.dart';
 import '../../models/design_catalog.dart';
-import '../../data/dummy_orders.dart';
 import '../../data/dummy_stores.dart';
-import '../../data/dummy_catalog.dart';
 import '../../widgets/app_scaffold.dart';
 
 class CoachOrderEditScreen extends StatefulWidget {
@@ -71,6 +68,8 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
         _editableItems.add(OrderItemEntry(
           storeItemId: item.storeItemId,
           name: item.name,
+          retailPrice: item.retailPrice,
+          wholesalePrice: item.wholesalePrice,
           types: item.types,
           sizes: Map.from(item.sizes),
           quantity: item.quantity,
@@ -79,6 +78,7 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
 
       setState(() => _isLoading = false);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       Navigator.of(context).pop();
     }
@@ -99,6 +99,7 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final user = context.read<AuthService>().currentUser!;
+    final firestore = context.read<FirebaseFirestore>();
 
     final updatedOrder = _order.copyWith(
       athleteFirstName: _firstNameCtrl.text,
@@ -110,7 +111,8 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
       itemEntries: _editableItems,
     );
 
-    final error = await OrderService.updateOrder(context.read<FirebaseFirestore>(), user, updatedOrder);
+    final error = await OrderService.updateOrder(firestore, user, updatedOrder);
+    if (!mounted) return;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
@@ -123,7 +125,9 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
 
   Future<void> _deleteOrder() async {
     final user = context.read<AuthService>().currentUser!;
-    final error = await OrderService.deleteOrder(context.read<FirebaseFirestore>(), user, _order.id);
+    final firestore = context.read<FirebaseFirestore>();
+    final error = await OrderService.deleteOrder(firestore, user, _order.id);
+    if (!mounted) return;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
@@ -218,7 +222,7 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _genderCtrl.text,
+              initialValue: _genderCtrl.text,
               decoration: const InputDecoration(labelText: 'Gender', border: OutlineInputBorder()),
               items: ['Mens', 'Womens', 'Youth'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
               onChanged: (val) => setState(() => _genderCtrl.text = val!),
@@ -269,30 +273,29 @@ class _CoachOrderEditScreenState extends State<CoachOrderEditScreen> {
                   children: [
                     Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 8),
-                    if (item.types != null)
-                      ...item.types!.where((t) => DesignCatalog.sizedTypes().contains(t)).map((type) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0),
-                          child: Row(
-                            children: [
-                              SizedBox(width: 80, child: Text('$type Size:')),
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: item.sizes[type],
-                                  decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
-                                  items: DesignCatalog.sizeChart()[_genderCtrl.text]!
-                                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                                      .toList(),
-                                  onChanged: (val) {
-                                    setState(() => item.sizes[type] = val!);
-                                  },
-                                  validator: (v) => v == null ? 'Required' : null,
-                                ),
+                    ...item.types.where((t) => DesignCatalog.sizedTypes().contains(t)).map((type) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            SizedBox(width: 80, child: Text('$type Size:')),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: item.sizes[type],
+                                decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                                items: DesignCatalog.sizeChart()[_genderCtrl.text]!
+                                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                                    .toList(),
+                                onChanged: (val) {
+                                  setState(() => item.sizes[type] = val!);
+                                },
+                                validator: (v) => v == null ? 'Required' : null,
                               ),
-                            ],
-                          ),
-                        );
-                      }),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                   ],
                 ),
               );

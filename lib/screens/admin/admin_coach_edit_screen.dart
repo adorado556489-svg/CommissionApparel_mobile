@@ -121,8 +121,10 @@ class _AdminCoachEditScreenState extends State<AdminCoachEditScreen> {
 
   Future<void> _deleteCoach() async {
     final admin = context.read<AuthService>().currentUser!;
+    final firestore = context.read<FirebaseFirestore>();
     final name = '${_coach.firstName} ${_coach.lastName}';
-    final error = await AdminService.deleteCoach(context.read<FirebaseFirestore>(), admin, _coach.id);
+    final error = await AdminService.deleteCoach(firestore, admin, _coach.id);
+    if (!mounted) return;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
@@ -175,7 +177,7 @@ class _AdminCoachEditScreenState extends State<AdminCoachEditScreen> {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          value: _status,
+                          initialValue: _status,
                           decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                           items: ['active', 'declined'].map((s) => DropdownMenuItem(value: s, child: Text(s.toUpperCase()))).toList(),
                           onChanged: (val) => setState(() => _status = val!),

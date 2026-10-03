@@ -59,7 +59,7 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
 
     return AppScaffold(
       title: '${collection.name} | Design Catalog',
-      currentNavIndex: 1,
+      currentNavIndex: 2,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -198,7 +198,7 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
         children: [
           Expanded(
             child: Container(
-              color: AppTheme.primary.withOpacity(0.05),
+              color: AppTheme.primary.withValues(alpha: 0.05),
               width: double.infinity,
               child: const Center(
                 child: Icon(Icons.image, size: 64, color: AppTheme.borderSubtle),
@@ -210,14 +210,14 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (design.category != null && design.category!.startsWith('package'))
+                if (design.category.startsWith('package'))
                   Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.secondary.withOpacity(0.1),
+                      color: AppTheme.secondary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppTheme.secondary.withOpacity(0.2)),
+                      border: Border.all(color: AppTheme.secondary.withValues(alpha: 0.2)),
                     ),
                     child: Text(
                       'PACKAGE',

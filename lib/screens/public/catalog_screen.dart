@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../widgets/app_scaffold.dart';
-import '../../widgets/glass_panel.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/catalog_service.dart';
@@ -42,7 +41,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
       return const AppScaffold(title: 'Catalog', body: Center(child: CircularProgressIndicator()));
     }
     // Determine unique sports/categories (in dummy data, collections map to sports)
-    final allCategories = ['All Categories', ..._collections.map((c) => c.name).toList()];
+    final allCategories = ['All Categories', ..._collections.map((c) => c.name)];
 
     // Filter collections based on selection
     final filteredCollections = _selectedCategory == 'All Categories' 
@@ -51,7 +50,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
     return AppScaffold(
       title: 'Design Collections',
-      currentNavIndex: 1,
+      currentNavIndex: 2,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -80,7 +79,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: AppTheme.surfaceLight,
+      color: Theme.of(context).cardColor,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,13 +113,14 @@ class _CatalogScreenState extends State<CatalogScreen> {
           width: 250,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: AppTheme.surfaceLight,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: AppTheme.borderSubtle),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedCategory,
+              dropdownColor: Theme.of(context).cardColor,
               isExpanded: true,
               icon: const Icon(Icons.arrow_drop_down, color: AppTheme.textSecondary),
               items: categories.map((cat) {
@@ -156,7 +156,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
           borderRadius: BorderRadius.circular(12),
           child: Container(
             decoration: BoxDecoration(
-              color: AppTheme.surfaceLight,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppTheme.borderSubtle),
             ),
@@ -167,7 +167,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 // In a real app we'd load the collection image.
                 // Using placeholder colors for dummy data
                 Container(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   child: const Center(
                     child: Icon(Icons.image, size: 48, color: AppTheme.borderSubtle),
                   ),
@@ -177,7 +177,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   left: 0,
                   right: 0,
                   child: Container(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: 0.7),
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                     child: Text(
                       collection.name,
@@ -201,7 +201,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceLight,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.borderSubtle, style: BorderStyle.solid),
       ),

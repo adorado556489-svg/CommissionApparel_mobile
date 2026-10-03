@@ -19,7 +19,7 @@ Widget createTestApp(Widget home, AuthService auth, [FirebaseFirestore? fs]) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider.value(value: auth),
-      Provider<FirebaseFirestore>.value(value: fs!),
+      Provider<FirebaseFirestore>.value(value: fs),
     ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
@@ -78,7 +78,6 @@ void main() {
     });
 
     testWidgets('Admin can create a campaign store', (tester) async {
-      return;
       await auth.login('admin@commissionapparel.com', 'password123');
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth, firestore));
       await tester.pumpAndSettle();
@@ -86,7 +85,10 @@ void main() {
       await tester.tap(find.text('CAMPAIGN STORES'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('CREATE CAMPAIGN STORE'));
+      final btn = find.widgetWithText(ElevatedButton, 'CREATE CAMPAIGN STORE');
+      await tester.ensureVisible(btn);
+      await tester.pumpAndSettle();
+      await tester.tap(btn);
       await tester.pumpAndSettle();
 
       final qs = await firestore.collection('teamStores').where('name', isEqualTo: 'New Campaign Store').limit(1).get();

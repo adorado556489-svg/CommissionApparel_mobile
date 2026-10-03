@@ -1,11 +1,13 @@
-﻿import 'dart:convert';
+// ignore_for_file: avoid_print
+
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 Future<void> main() async {
   const apiKey = 'AIzaSyAyOsX361xbJq0F5kPv1ppowJGlV0HRY0s';
   const projectId = 'commissionappareldb';
   
-  final authUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + apiKey);
+  final authUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$apiKey');
   final authRes = await http.post(
     authUrl,
     headers: {'Content-Type': 'application/json'},
@@ -23,12 +25,12 @@ Future<void> main() async {
     final data = jsonDecode(authRes.body);
     uid = data['localId'];
     idToken = data['idToken'];
-    print('Created admin with UID: ' + uid);
+    print('Created admin with UID: $uid');
   } else {
     final err = jsonDecode(authRes.body);
     if (err['error'] != null && err['error']['message'] == 'EMAIL_EXISTS') {
       print('Admin already exists! Attempting to login to get token...');
-      final loginUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + apiKey);
+      final loginUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$apiKey');
       final loginRes = await http.post(
         loginUrl,
         headers: {'Content-Type': 'application/json'},
@@ -42,23 +44,23 @@ Future<void> main() async {
         final data = jsonDecode(loginRes.body);
         uid = data['localId'];
         idToken = data['idToken'];
-        print('Logged in admin with UID: ' + uid);
+        print('Logged in admin with UID: $uid');
       } else {
-        print('Failed to login: ' + loginRes.body);
+        print('Failed to login: ${loginRes.body}');
         return;
       }
     } else {
-      print('Failed to create admin: ' + authRes.body);
+      print('Failed to create admin: ${authRes.body}');
       return;
     }
   }
 
-  final firestoreUrl = Uri.parse('https://firestore.googleapis.com/v1/projects/' + projectId + '/databases/(default)/documents/users/' + uid);
+  final firestoreUrl = Uri.parse('https://firestore.googleapis.com/v1/projects/$projectId/databases/(default)/documents/users/$uid');
   final fsRes = await http.patch(
     firestoreUrl,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + idToken
+      'Authorization': 'Bearer $idToken'
     },
     body: jsonEncode({
       'fields': {
@@ -77,6 +79,6 @@ Future<void> main() async {
   if (fsRes.statusCode == 200) {
     print('Admin document seeded successfully!');
   } else {
-    print('Failed to seed admin document: ' + fsRes.body);
+    print('Failed to seed admin document: ${fsRes.body}');
   }
 }

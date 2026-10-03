@@ -19,6 +19,36 @@ class CatalogService {
     throw e;
   }
 
+    static Future<List<DesignCatalog>> getCoachDesignCatalog(FirebaseFirestore firestore, String coachId) async {
+    try {
+      final qs = await firestore.collection(FirestorePaths.designCatalog).where('coachId', isEqualTo: coachId).get();
+      if (qs.docs.isNotEmpty) {
+        return qs.docs.map((d) => DesignCatalog.fromFirestore(d)).toList();
+      }
+    } catch (e) { _handleError(e, "CatalogService"); }
+    return [];
+  }
+
+  static Future<List<DesignCatalog>> getMasterBlankCatalog(FirebaseFirestore firestore) async {
+    try {
+      final qs = await firestore.collection(FirestorePaths.designCatalog).where('coachId', isNull: true).get();
+      if (qs.docs.isNotEmpty) {
+        return qs.docs.map((d) => DesignCatalog.fromFirestore(d)).toList();
+      }
+    } catch (e) { _handleError(e, "CatalogService"); }
+    return [];
+  }
+
+  static Future<List<DesignCollection>> getCoachDesignCollections(FirebaseFirestore firestore, String coachId) async {
+    try {
+      final qs = await firestore.collection(FirestorePaths.designCollections).where('coachId', isEqualTo: coachId).get();
+      if (qs.docs.isNotEmpty) {
+        return qs.docs.map((d) => DesignCollection.fromFirestore(d)).toList();
+      }
+    } catch (e) { _handleError(e, "CatalogService"); }
+    return [];
+  }
+
   static Future<List<DesignCatalog>> getAllDesignCatalog(FirebaseFirestore firestore) async {
     try {
       final qs = await firestore.collection(FirestorePaths.designCatalog).get();

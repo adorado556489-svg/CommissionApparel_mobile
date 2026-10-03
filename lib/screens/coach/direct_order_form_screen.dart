@@ -79,7 +79,7 @@ class _DirectOrderFormScreenState extends State<DirectOrderFormScreen> {
       itemsToSubmit.add(OrderItemEntry(
         storeItemId: sel.design.id, // Direct orders map catalog ID here
         name: sel.design.name,
-        types: sel.design.types ?? [],
+        types: sel.design.types,
         sizes: sel.sizes,
         quantity: sel.qty,
       ));
@@ -99,6 +99,8 @@ class _DirectOrderFormScreenState extends State<DirectOrderFormScreen> {
     );
 
     setState(() => _isLoading = false);
+
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
@@ -164,7 +166,9 @@ class _DirectOrderFormScreenState extends State<DirectOrderFormScreen> {
                   child: RadioListTile<String>(
                     title: const Text('By Person (Athlete)'),
                     value: 'person',
+                    // ignore: deprecated_member_use
                     groupValue: _orderType,
+                    // ignore: deprecated_member_use
                     onChanged: (val) => setState(() => _orderType = val!),
                   ),
                 ),
@@ -172,7 +176,9 @@ class _DirectOrderFormScreenState extends State<DirectOrderFormScreen> {
                   child: RadioListTile<String>(
                     title: const Text('By Item (Bulk)'),
                     value: 'item',
+                    // ignore: deprecated_member_use
                     groupValue: _orderType,
+                    // ignore: deprecated_member_use
                     onChanged: (val) => setState(() => _orderType = val!),
                   ),
                 ),
@@ -214,7 +220,7 @@ class _DirectOrderFormScreenState extends State<DirectOrderFormScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _genderCtrl.text,
+              initialValue: _genderCtrl.text,
               decoration: const InputDecoration(labelText: 'Gender', border: OutlineInputBorder()),
               items: ['Mens', 'Womens', 'Youth'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
               onChanged: (val) => setState(() => _genderCtrl.text = val!),
@@ -267,7 +273,7 @@ class _DirectOrderFormScreenState extends State<DirectOrderFormScreen> {
                   children: [
                     CheckboxListTile(
                       title: Text(sel.design.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('Wholesale: \$${sel.design.wholesalePrice?.toStringAsFixed(2) ?? '0.00'}'),
+                      subtitle: Text('Wholesale: \$${sel.design.wholesalePrice.toStringAsFixed(2)}'),
                       value: sel.isSelected,
                       onChanged: (val) => setState(() => sel.isSelected = val!),
                     ),
@@ -292,28 +298,27 @@ class _DirectOrderFormScreenState extends State<DirectOrderFormScreen> {
                                 ],
                               ),
                             const SizedBox(height: 12),
-                            if (sel.design.types != null)
-                              ...sel.design.types!.where((t) => DesignCatalog.sizedTypes().contains(t)).map((type) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8.0),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(width: 80, child: Text('$type Size:')),
-                                      Expanded(
-                                        child: DropdownButtonFormField<String>(
-                                          value: sel.sizes[type],
-                                          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
-                                          items: DesignCatalog.sizeChart()[_genderCtrl.text]!
-                                              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                                              .toList(),
-                                          onChanged: (val) => setState(() => sel.sizes[type] = val!),
-                                          validator: (v) => v == null ? 'Required' : null,
-                                        ),
+                            ...sel.design.types.where((t) => DesignCatalog.sizedTypes().contains(t)).map((type) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Row(
+                                  children: [
+                                    SizedBox(width: 80, child: Text('$type Size:')),
+                                    Expanded(
+                                      child: DropdownButtonFormField<String>(
+                                        initialValue: sel.sizes[type],
+                                        decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                                        items: DesignCatalog.sizeChart()[_genderCtrl.text]!
+                                            .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                                            .toList(),
+                                        onChanged: (val) => setState(() => sel.sizes[type] = val!),
+                                        validator: (v) => v == null ? 'Required' : null,
                                       ),
-                                    ],
-                                  ),
-                                );
-                              }),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
                           ],
                         ),
                       ),
@@ -336,8 +341,6 @@ class _DesignSelection {
 
   _DesignSelection({
     required this.design,
-    this.isSelected = false,
-    this.qty = 1,
-  }) : sizes = {};
+  }) : isSelected = false, qty = 1, sizes = {};
 }
 

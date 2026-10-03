@@ -140,9 +140,9 @@ class _QuoteScreenState extends State<QuoteScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.2),
+              color: AppTheme.primary.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
             ),
             child: Text(
               'CUSTOM DESIGN INTAKE',
@@ -240,7 +240,7 @@ class _QuoteScreenState extends State<QuoteScreen> {
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
           decoration: const InputDecoration(labelText: 'Apparel Category'),
-          value: _selectedSport,
+          initialValue: _selectedSport,
           items: _sports.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
           onChanged: (val) => setState(() => _selectedSport = val),
         ),
@@ -312,7 +312,9 @@ class _QuoteScreenState extends State<QuoteScreen> {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
         value: value,
+        // ignore: deprecated_member_use
         groupValue: _packageType,
+        // ignore: deprecated_member_use
         onChanged: (val) {
           if (val != null) setState(() => _packageType = val);
         },

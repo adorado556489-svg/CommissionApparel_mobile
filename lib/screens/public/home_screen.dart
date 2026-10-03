@@ -80,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return Container(
+    return SizedBox(
       height: 300,
       child: Stack(
         fit: StackFit.expand,
@@ -167,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text('What Coaches Say', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 16),
-          Container(
+          SizedBox(
             height: 220,
             child: PageView.builder(
               itemCount: dummyTestimonials.length,
