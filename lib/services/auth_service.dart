@@ -196,6 +196,7 @@ class AuthService extends ChangeNotifier {
 
   Future<User?> signInWithGoogle() async {
     try {
+      await _googleSignIn.signOut();
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
@@ -272,6 +273,7 @@ class AuthService extends ChangeNotifier {
 
   Future<void> logout() async {
     await _auth.signOut();
+    try { await _googleSignIn.signOut(); } catch (_) {}
     _currentUser = null;
     notifyListeners();
   }
