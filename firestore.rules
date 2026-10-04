@@ -22,6 +22,12 @@ service cloud.firestore {
       return isAdmin() || isOwner(userId);
     }
 
+    function isCoach() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'coach';
+    }
+
     // Verify store ownership by looking up the teamStores document
     function ownsStore(storeId) {
       return isAuthenticated()
@@ -85,8 +91,14 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (isOwner(resource.data.userId)
             && request.resource.data.userId == resource.data.userId
-            && request.resource.data.status == resource.data.status
-            && request.resource.data.pricingApproved == resource.data.pricingApproved);
+            && request.resource.data.pricingApproved == resource.data.pricingApproved
+            && request.resource.data.get('isArchived', false) == resource.data.get('isArchived', false)
+            && (request.resource.data.status == resource.data.status
+                || (resource.data.status == 'approved'
+                    && request.resource.data.status == 'submitted_to_admin')
+                || (resource.data.status == 'submitted_to_admin'
+                    && request.resource.data.status == 'approved')));
+
 
       // Only admin can delete stores.
       allow delete: if isAdmin();
@@ -173,7 +185,11 @@ service cloud.firestore {
     // designCollections/{collectionId}
     match /designCollections/{collectionId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin() || (isCoach() && request.resource.data.coachId == request.auth.uid);
+      allow update: if isAdmin() || (isCoach()
+        && resource.data.coachId == request.auth.uid
+        && request.resource.data.coachId == request.auth.uid);
+      allow delete: if isAdmin() || (isCoach() && resource.data.coachId == request.auth.uid);
     }
 
     // ── LANDING COLLECTIONS ──────────────────────────────────────────

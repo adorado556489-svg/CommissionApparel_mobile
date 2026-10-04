@@ -20,7 +20,6 @@ import '../screens/admin/admin_dashboard_screen.dart';
 import '../screens/admin/admin_coach_edit_screen.dart';
 import '../screens/admin/admin_batch_show_screen.dart';
 import '../screens/admin/admin_content_screens.dart';
-import '../screens/admin/admin_store_edit_screen.dart';
 
 // New user screens
 import '../screens/user/user_dashboard_screen.dart';
@@ -65,7 +64,6 @@ class AppRoutes {
   static const String adminTestimonials = '/admin/testimonials';
   static const String adminQuotes = '/admin/quotes';
   static const String adminLandingCollections = '/admin/landing-collections';
-  static const String adminStoreEdit = '/admin/store/edit';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     return MaterialPageRoute(
@@ -108,7 +106,6 @@ class AppRoutes {
       case adminTestimonials: return const AdminTestimonialsScreen();
       case adminQuotes: return const AdminQuotesScreen();
       case adminLandingCollections: return const AdminLandingCollectionsScreen();
-      case adminStoreEdit: return AdminStoreEditScreen(storeId: routeSettings.arguments as String);
       default:
         return const Scaffold(
           body: Center(child: Text('404 - Page not found')),
@@ -166,9 +163,9 @@ class _RouteGuard extends StatelessWidget {
     }
 
     if (settings.name?.startsWith('/coach') == true) {
-      if (!isAuth || (role != UserRole.coach && role != UserRole.admin && !auth.hasApprovedStore)) {
+      if (!isAuth || role != UserRole.coach) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+          Navigator.of(context).pushReplacementNamed(isAuth ? AppRoutes.home : AppRoutes.login);
         });
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
@@ -177,7 +174,7 @@ class _RouteGuard extends StatelessWidget {
     if (settings.name?.startsWith('/admin') == true) {
       if (!isAuth || role != UserRole.admin) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+          Navigator.of(context).pushReplacementNamed(isAuth ? AppRoutes.home : AppRoutes.login);
         });
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }

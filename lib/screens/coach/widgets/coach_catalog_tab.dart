@@ -1,518 +1,683 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../services/catalog_service.dart';
-import '../../../services/auth_service.dart';
-import '../../../models/design_collection.dart';
-import '../../../app/theme.dart';
-import '../../../models/design_catalog.dart';
-import '../../../data/dummy_catalog.dart';
-import '../../../data/dummy_users.dart';
-import '../../../data/dummy_stores.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:cloudinary_public/cloudinary_public.dart';
 
+import '../../../services/catalog_service.dart';
+import '../../../services/store_service.dart';
+import '../../../models/team_store.dart';
+import '../../../models/design_catalog.dart';
+import '../../../models/store_item.dart';
+import '../../../services/storage_service.dart';
+import '../../../utils/formatters.dart';
+import '../../../widgets/managed_image.dart';
+
+/// Coach "PRODUCTS" tab: the designs already on sale in the store, plus the
+/// admin's blank catalog to start a new product from.
+///
+/// Everything is rendered in one lazy [CustomScrollView] so large catalogs
+/// never build (or decode images for) off-screen cards.
 class CoachCatalogTab extends StatefulWidget {
-  const CoachCatalogTab({super.key});
+  final TeamStore store;
+
+  const CoachCatalogTab({super.key, required this.store});
 
   @override
   State<CoachCatalogTab> createState() => _CoachCatalogTabState();
 }
 
-class _CoachCatalogTabState extends State<CoachCatalogTab> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _sportController = TextEditingController();
-  final _wholesaleController = TextEditingController();
-  final _sortOrderController = TextEditingController();
-  
-  String? _selectedCollectionId;
-  String _selectedCategory = 'individual';
-  final List<String> _selectedTypes = [];
-  bool _hasNameField = false;
-  bool _hasNumberField = false;
+class _CoachCatalogTabState extends State<CoachCatalogTab>
+    with AutomaticKeepAliveClientMixin {
+  List<DesignCatalog> _masterBlanks = const [];
+  List<StoreItem> _items = const [];
+  bool _blanksLoading = true;
+  bool _itemsLoading = true;
+  String? _error;
+  StreamSubscription<List<StoreItem>>? _itemsSub;
 
-  List<DesignCatalog> _catalogItems = [];
-  List<DesignCollection> _collections = [];
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final firestore = context.read<FirebaseFirestore>();
-    final items = await CatalogService.getCoachDesignCatalog(firestore, context.read<AuthService>().currentUser!.id);
-    final cols = await CatalogService.getCoachDesignCollections(firestore, context.read<AuthService>().currentUser!.id);
-    if (mounted) {
-      setState(() {
-        _catalogItems = items;
-        _collections = cols;
-      });
-    }
-  }
-  List<String> _imagePaths = [];
-  
-  final List<String> _availableTypes = [
-    'Jersey', 'Shorts', 'Hoodie', 'Pants', 'T-Shirt', 'Warmup Top', 'Warmup Bottom', 'Accessory', 'Backpack'
-  ];
-
-
-
-  bool _isUploadingImage = false;
-
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _isUploadingImage = true;
-      });
-      try {
-        final cloudinary = CloudinaryPublic('brtamhix', 'commission_apparel', cache: false);
-        CloudinaryResponse response = await cloudinary.uploadFile(
-          CloudinaryFile.fromFile(pickedFile.path, resourceType: CloudinaryResourceType.Image),
-        );
+    _loadBlanks();
+    _itemsSub = StoreService.watchStoreItems(
+      context.read<FirebaseFirestore>(),
+      widget.store.id,
+    ).listen(
+      (items) {
+        if (!mounted) return;
         setState(() {
-          _imagePaths = [response.secureUrl];
-          _isUploadingImage = false;
+          _items = items;
+          _itemsLoading = false;
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image uploaded to Cloudinary successfully.')));
-        }
-      } catch (e) {
+      },
+      onError: (Object e) {
+        debugPrint('CoachCatalogTab items stream failed: $e');
+        if (!mounted) return;
         setState(() {
-          _isUploadingImage = false;
+          _itemsLoading = false;
+          _error = 'Could not load your products.';
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cloudinary upload failed: $e')));
-        }
-      }
-    }
-  }
-
-  Future<void> _createDesign() async {
-    final firestore = context.read<FirebaseFirestore>();
-    if (_formKey.currentState!.validate() && _selectedTypes.isNotEmpty) {
-      final newDesign = DesignCatalog(coachId: context.read<AuthService>().currentUser!.id, 
-        id: 'design-${DateTime.now().millisecondsSinceEpoch}',
-        name: _nameController.text,
-        designCollectionId: _selectedCollectionId,
-        sport: _sportController.text.isEmpty ? null : _sportController.text,
-        category: _selectedCategory,
-        types: List.from(_selectedTypes),
-        wholesalePrice: double.tryParse(_wholesaleController.text) ?? 0.0,
-        hasNameField: _hasNameField,
-        hasNumberField: _hasNumberField,
-        sortOrder: int.tryParse(_sortOrderController.text) ?? 0,
-        imagePaths: _imagePaths.isEmpty ? ['assets/images/placeholder.png'] : _imagePaths,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      await CatalogService.createDesignCatalogItem(firestore, newDesign);
-      await _loadData();
-      
-      _nameController.clear();
-      _sportController.clear();
-      _wholesaleController.clear();
-      _sortOrderController.clear();
-      setState(() {
-        _selectedCollectionId = null;
-        _selectedCategory = 'individual';
-        _selectedTypes.clear();
-        _hasNameField = false;
-        _hasNumberField = false;
-        _imagePaths = [];
-      });
-      _loadData();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Design "${newDesign.name}" created.')),
-      );
-    } else if (_selectedTypes.isEmpty) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one garment type.')),
-      );
-    }
-  }
-
-  void _editDesign(DesignCatalog design) {
-    _nameController.text = design.name;
-    _sportController.text = design.sport ?? '';
-    _wholesaleController.text = design.wholesalePrice.toString();
-    _sortOrderController.text = design.sortOrder.toString();
-    _selectedCollectionId = design.designCollectionId;
-    _selectedCategory = design.category;
-    _selectedTypes.clear();
-    _selectedTypes.addAll(design.types);
-    _hasNameField = design.hasNameField;
-    _hasNumberField = design.hasNumberField;
-    _imagePaths = List.from(design.imagePaths);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Edit Design'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(labelText: 'Design Name'),
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                  DropdownButtonFormField<String?>(
-                    initialValue: _selectedCollectionId,
-                    decoration: const InputDecoration(labelText: 'Collection'),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('None (Orphaned)')),
-                      ..._collections.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
-                    ],
-                    onChanged: (v) => setDialogState(() => _selectedCollectionId = v),
-                  ),
-                  TextFormField(
-                    controller: _sportController,
-                    decoration: const InputDecoration(labelText: 'Sport (Optional)'),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: _availableTypes.map((type) => FilterChip(
-                      label: Text(type),
-                      selected: _selectedTypes.contains(type),
-                      onSelected: (val) {
-                        setDialogState(() {
-                          if (val) {
-                            _selectedTypes.add(type);
-                          } else {
-                            _selectedTypes.remove(type);
-                          }
-                        });
-                      },
-                    )).toList(),
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedCategory,
-                    decoration: const InputDecoration(labelText: 'Category'),
-                    items: const [
-                      DropdownMenuItem(value: 'individual', child: Text('Individual Item')),
-                      DropdownMenuItem(value: 'package_a', child: Text('Package A')),
-                      DropdownMenuItem(value: 'package_b', child: Text('Package B')),
-                      DropdownMenuItem(value: 'package_c', child: Text('Package C')),
-                    ],
-                    onChanged: (v) => setDialogState(() => _selectedCategory = v!),
-                  ),
-                  TextFormField(
-                    controller: _wholesaleController,
-                    decoration: const InputDecoration(labelText: 'Wholesale Price (\$)'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                  SwitchListTile(
-                    title: const Text('Has Name Field?'),
-                    value: _hasNameField,
-                    onChanged: (v) => setDialogState(() => _hasNameField = v),
-                  ),
-                  SwitchListTile(
-                    title: const Text('Has Number Field?'),
-                    value: _hasNumberField,
-                    onChanged: (v) => setDialogState(() => _hasNumberField = v),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
-            TextButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate() && _selectedTypes.isNotEmpty) {
-                  final index = dummyDesignCatalog.indexWhere((d) => d.id == design.id);
-                  if (index != -1) {
-                    dummyDesignCatalog[index] = dummyDesignCatalog[index].copyWith(
-                      name: _nameController.text,
-                      sport: _sportController.text.isEmpty ? null : _sportController.text,
-                      category: _selectedCategory,
-                      types: List.from(_selectedTypes),
-                      wholesalePrice: double.tryParse(_wholesaleController.text) ?? 0.0,
-                      hasNameField: _hasNameField,
-                      hasNumberField: _hasNumberField,
-                      designCollectionId: _selectedCollectionId,
-                      clearCollectionId: _selectedCollectionId == null,
-                    );
-                  }
-                  Navigator.pop(ctx);
-                  _nameController.clear();
-                  _sportController.clear();
-                  _wholesaleController.clear();
-                  _sortOrderController.clear();
-                  _loadData();
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Design updated.')));
-                }
-              },
-              child: const Text('SAVE'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _deleteDesign(DesignCatalog design) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Design?'),
-        content: const Text('WARNING: This will delete all Store Items across all active and archived Team Stores that reference this design. Package component references will also be scrubbed.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
-          TextButton(
-            onPressed: () async {
-              final firestore = context.read<FirebaseFirestore>();
-              // 1. Delete associated StoreItems globally
-              final deletedStoreItemIds = dummyStoreItems.where((i) => i.designCatalogId == design.id).map((i) => i.id).toList();
-              dummyStoreItems.removeWhere((i) => i.designCatalogId == design.id);
-              
-              // 2. Scrub package component references
-              for (int i = 0; i < dummyStoreItems.length; i++) {
-                final item = dummyStoreItems[i];
-                final newComponentIds = item.componentIds.where((id) => !deletedStoreItemIds.contains(id)).toList();
-                dummyStoreItems[i] = item.copyWith(componentIds: newComponentIds);
-              }
-              
-              // 3. Delete design
-              await CatalogService.deleteDesignCatalogItem(firestore, design.id);
-              await _loadData();
-              
-              if (ctx.mounted) Navigator.pop(ctx);
-              _loadData();
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Design deleted and cascaded.')),
-              );
-            },
-            child: const Text('DELETE', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _assignToCoach(DesignCatalog design) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Assign/Remove Design'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView(
-            shrinkWrap: true,
-            children: dummyCoaches.map((coach) {
-              final isAssigned = coach.assignedDesignIds.contains(design.id);
-              return CheckboxListTile(
-                title: Text(coach.fullName),
-                subtitle: Text(coach.organization ?? ''),
-                value: isAssigned,
-                onChanged: (val) {
-                  setState(() {
-                    if (val == true) {
-                      if (!coach.assignedDesignIds.contains(design.id)) {
-                        coach.assignedDesignIds.add(design.id);
-                      }
-                    } else {
-                      coach.assignedDesignIds.remove(design.id);
-                    }
-                  });
-                  Navigator.pop(ctx);
-                  _assignToCoach(design); // refresh dialog
-                },
-              );
-            }).toList(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Coach assignments updated.')),
-              );
-            },
-            child: const Text('DONE'),
-          ),
-        ],
-      ),
+      },
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(child: Column(
-      children: [
-        ExpansionTile(
-          title: const Text('CREATE NEW DESIGN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+  void dispose() {
+    _itemsSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadBlanks() async {
+    try {
+      final blanks = (await CatalogService.getMasterBlankCatalog(
+        context.read<FirebaseFirestore>(),
+      ))
+          .where((blank) => blank.isActive)
+          .toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      if (!mounted) return;
+      setState(() {
+        _masterBlanks = blanks;
+        _blanksLoading = false;
+      });
+    } catch (e) {
+      debugPrint('CoachCatalogTab blanks failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _blanksLoading = false;
+        _error = 'Could not load the blank catalog.';
+      });
+    }
+  }
+
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _openCreateProductDialog(DesignCatalog blank) {
+    if (!widget.store.isApproved) {
+      _toast('Re-open your store to add products.');
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => _CreateProductDialog(
+        blank: blank,
+        storeId: widget.store.id,
+      ),
+    );
+  }
+
+  Future<void> _editPrice(StoreItem item) async {
+    final price = await showDialog<double>(
+      context: context,
+      builder: (ctx) => _EditPriceDialog(item: item),
+    );
+    if (price == null || !mounted) return;
+    try {
+      await StoreService.updateStoreItem(
+        context.read<FirebaseFirestore>(),
+        item.copyWith(retailPrice: price),
+      );
+      _toast('Price updated to ${Fmt.money(price)}.');
+    } catch (e) {
+      debugPrint('CoachCatalogTab update price failed: $e');
+      _toast('Could not update the price. Please try again.');
+    }
+  }
+
+  Future<void> _remove(StoreItem item) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove product?'),
+        content: Text(
+          '"${item.name}" will no longer be shown in your store. Existing orders keep their original price.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('REMOVE'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await StoreService.deleteStoreItem(context.read<FirebaseFirestore>(), item.id);
+      _toast('Product removed.');
+    } catch (e) {
+      debugPrint('CoachCatalogTab delete failed: $e');
+      _toast('Could not remove the product. Please try again.');
+    }
+  }
+
+  Widget _heading(String text, {String? subtitle}) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(text, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(subtitle, style: TextStyle(color: Theme.of(context).hintColor)),
+            ],
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: _heading(
+            'Your products (${_items.length})',
+            subtitle: 'Designs customers can order from your store.',
+          ),
+        ),
+        if (_error != null)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+            ),
+          ),
+        if (_itemsLoading)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          )
+        else if (_items.isEmpty)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text('No products yet. Pick a blank below and upload your design.'),
+            ),
+          )
+        else
+          SliverList.builder(
+            itemCount: _items.length,
+            itemBuilder: (context, i) => _ItemTile(
+              item: _items[i],
+              onEditPrice: () => _editPrice(_items[i]),
+              onRemove: () => _remove(_items[i]),
+            ),
+          ),
+        SliverToBoxAdapter(
+          child: _heading(
+            'Add a product',
+            subtitle: 'Choose a blank, upload your team design and set your price.',
+          ),
+        ),
+        if (_blanksLoading)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          )
+        else if (_masterBlanks.isEmpty)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text('No blank products are available right now.'),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            sliver: SliverGrid.builder(
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 240,
+                mainAxisExtent: 270,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: _masterBlanks.length,
+              itemBuilder: (context, index) {
+                final blank = _masterBlanks[index];
+                return _BlankCard(
+                  blank: blank,
+                  onCustomize: () => _openCreateProductDialog(blank),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// One product already on sale in the coach's store.
+class _ItemTile extends StatelessWidget {
+  final StoreItem item;
+  final VoidCallback onEditPrice;
+  final VoidCallback onRemove;
+
+  const _ItemTile({required this.item, required this.onEditPrice, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final image = item.displayImage;
+    final profit = item.marginPerUnit;
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 64,
+                height: 64,
+                child: (image == null || image.isEmpty)
+                    ? Container(color: Colors.black12, child: const Icon(Icons.checkroom))
+                    : AppImage(image, fit: BoxFit.cover, width: 64, height: 64),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Price ${Fmt.money(item.retailPrice)}  |  Base ${Fmt.money(item.wholesalePrice)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    'You earn ${Fmt.money(profit)} each',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: profit > 0 ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Edit price',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: onEditPrice,
+            ),
+            IconButton(
+              tooltip: 'Remove product',
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: onRemove,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A blank from the admin catalog that can be customised into a product.
+class _BlankCard extends StatelessWidget {
+  final DesignCatalog blank;
+  final VoidCallback onCustomize;
+
+  const _BlankCard({required this.blank, required this.onCustomize});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onCustomize,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Container(
+                color: Colors.black12,
+                child: blank.imagePaths.isNotEmpty
+                    ? AppImage(blank.imagePaths.first, fit: BoxFit.cover)
+                    : const Icon(Icons.checkroom, size: 48, color: Colors.grey),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'Design Name'),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    blank.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Base cost ${Fmt.money(blank.wholesalePrice)}',
+                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: onCustomize,
+                      child: const Text('CUSTOMIZE'),
                     ),
-                    DropdownButtonFormField<String?>(
-                      initialValue: _selectedCollectionId,
-                      decoration: const InputDecoration(labelText: 'Collection'),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('None (Orphaned)')),
-                        ..._collections.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
-                      ],
-                      onChanged: (v) => setState(() => _selectedCollectionId = v),
-                    ),
-                    TextFormField(
-                      controller: _sportController,
-                      decoration: const InputDecoration(labelText: 'Sport (Optional)'),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Garment Types', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    Wrap(
-                      spacing: 8,
-                      children: _availableTypes.map((type) => FilterChip(
-                        label: Text(type),
-                        selected: _selectedTypes.contains(type),
-                        onSelected: (val) {
-                          setState(() {
-                            if (val) {
-                              _selectedTypes.add(type);
-                            } else {
-                              _selectedTypes.remove(type);
-                            }
-                          });
-                        },
-                      )).toList(),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedCategory,
-                      decoration: const InputDecoration(labelText: 'Category'),
-                      items: const [
-                        DropdownMenuItem(value: 'individual', child: Text('Individual Item')),
-                        DropdownMenuItem(value: 'package_a', child: Text('Package A')),
-                        DropdownMenuItem(value: 'package_b', child: Text('Package B')),
-                        DropdownMenuItem(value: 'package_c', child: Text('Package C')),
-                      ],
-                      onChanged: (v) => setState(() => _selectedCategory = v!),
-                    ),
-                    TextFormField(
-                      controller: _wholesaleController,
-                      decoration: const InputDecoration(labelText: 'Wholesale Price (\$)'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                    ),
-                    SwitchListTile(
-                      title: const Text('Has Name Field?'),
-                      value: _hasNameField,
-                      onChanged: (v) => setState(() => _hasNameField = v),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Has Number Field?'),
-                      value: _hasNumberField,
-                      onChanged: (v) => setState(() => _hasNumberField = v),
-                    ),
-                    TextFormField(
-                      controller: _sortOrderController,
-                      decoration: const InputDecoration(labelText: 'Sort Order'),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _isUploadingImage ? null : _pickImage,
-                      icon: _isUploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.image),
-                      label: Text(_isUploadingImage ? 'UPLOADING...' : _imagePaths.isEmpty ? 'UPLOAD COVER IMAGE' : 'IMAGE SELECTED'),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _isUploadingImage ? null : _createDesign,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 45),
-                      ),
-                      child: const Text('SAVE DESIGN'),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        ..._catalogItems.map((design) {
-          final col = _collections.where((c) => c.id == design.designCollectionId).firstOrNull;
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ListTile(
-                    title: Text(design.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Collection: ${col?.name ?? "None"} | \$${design.wholesalePrice}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.group_add, color: AppTheme.primary),
-                          tooltip: 'Assign to Coach',
-                          onPressed: () => _assignToCoach(design),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          tooltip: 'Edit Design',
-                          onPressed: () => _editDesign(design),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () => _deleteDesign(design),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text('Types: ${design.types.join(", ")}\nCategory: ${design.category}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
-    ));
+      ),
+    );
   }
 }
 
+/// Edits an item's retail price; owns (and disposes) its controller.
+class _EditPriceDialog extends StatefulWidget {
+  final StoreItem item;
+  const _EditPriceDialog({required this.item});
 
+  @override
+  State<_EditPriceDialog> createState() => _EditPriceDialogState();
+}
 
+class _EditPriceDialogState extends State<_EditPriceDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _controller;
 
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.item.retailPrice.toStringAsFixed(2));
+  }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    Navigator.pop(context, double.parse(_controller.text.trim()));
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    final base = widget.item.wholesalePrice;
+    return AlertDialog(
+      title: const Text('Edit price'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Base cost: ${Fmt.money(base)}'),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Retail price (\$)'),
+              onFieldSubmitted: (_) => _submit(),
+              validator: (v) {
+                final p = double.tryParse((v ?? '').trim());
+                if (p == null || p <= 0) return 'Enter a valid price.';
+                if (p < base) return 'Price must cover the base cost.';
+                return null;
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Existing orders keep the price they were placed at.',
+              style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+        ElevatedButton(onPressed: _submit, child: const Text('SAVE')),
+      ],
+    );
+  }
+}
 
+class _CreateProductDialog extends StatefulWidget {
+  final DesignCatalog blank;
+  final String storeId;
+
+  const _CreateProductDialog({
+    required this.blank,
+    required this.storeId,
+  });
+
+  @override
+  State<_CreateProductDialog> createState() => _CreateProductDialogState();
+}
+
+class _CreateProductDialogState extends State<_CreateProductDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _retailPriceController;
+  String? _uploadedImageUrl;
+  bool _isUploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(
+      text: "Custom ${widget.blank.name}",
+    );
+    _retailPriceController = TextEditingController(
+      text: (widget.blank.wholesalePrice + 10).toStringAsFixed(2),
+    );
+  }
+
+  Future<void> _pickImage() async {
+    setState(() => _isUploading = true);
+    try {
+      final storage = StorageService();
+      final url = await storage.pickAndUpload(
+        folder: 'stores/${widget.storeId}/designs',
+      );
+      if (url != null) {
+        setState(() {
+          _uploadedImageUrl = url;
+          _isUploading = false;
+        });
+      } else {
+        setState(() => _isUploading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isUploading = false);
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+    }
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_uploadedImageUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload a design image.')),
+      );
+      return;
+    }
+
+    final retailPrice = double.tryParse(_retailPriceController.text) ?? 0.0;
+    if (retailPrice < widget.blank.wholesalePrice) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Retail price cannot be lower than base cost.'),
+        ),
+      );
+      return;
+    }
+
+    final firestore = context.read<FirebaseFirestore>();
+
+    final item = StoreItem(
+      id: firestore.collection('storeItems').doc().id,
+      teamStoreId: widget.storeId,
+      designCatalogId: widget.blank.id,
+      name: _nameController.text.trim(),
+      types: widget.blank.types.isNotEmpty
+          ? widget.blank.types
+          : [widget.blank.type ?? 'Apparel'],
+      imagePaths: [_uploadedImageUrl!],
+      wholesalePrice: widget.blank.wholesalePrice,
+      retailPrice: retailPrice,
+      hasNameField: widget.blank.hasNameField,
+      hasNumberField: widget.blank.hasNumberField,
+      availableSizes: widget.blank.availableSizes,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      await StoreService.createStoreItem(firestore, item);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product added to your store!')),
+        );
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not add product: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final margin =
+        (double.tryParse(_retailPriceController.text) ?? 0.0) -
+        widget.blank.wholesalePrice;
+
+    return AlertDialog(
+      title: const Text('Customize Product'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Base Cost: \$${widget.blank.wholesalePrice.toStringAsFixed(2)}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Product Name (e.g. Riverside Hoodie)',
+                ),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Enter a product name.'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _retailPriceController,
+                decoration: const InputDecoration(
+                  labelText: 'Your Retail Price (\$)',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (v) => setState(() {}),
+                validator: (v) {
+                  final price = double.tryParse(v ?? '');
+                  if (price == null || price <= 0)
+                    return 'Enter a valid price greater than zero.';
+                  if (price < widget.blank.wholesalePrice)
+                    return 'Price must cover the base cost.';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your Profit: \$${margin.toStringAsFixed(2)} per item',
+                style: TextStyle(
+                  color: margin > 0 ? Colors.green : Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Upload Your Design/Logo:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (_uploadedImageUrl != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: AppImage(
+                    _uploadedImageUrl!,
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              ElevatedButton.icon(
+                onPressed: _isUploading ? null : _pickImage,
+                icon: _isUploading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload),
+                label: Text(
+                  _isUploading
+                      ? 'Uploading...'
+                      : (_uploadedImageUrl == null
+                            ? 'Select Image'
+                            : 'Change Image'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isUploading ? null : _save,
+          child: const Text('ADD TO STORE'),
+        ),
+      ],
+    );
+  }
+}

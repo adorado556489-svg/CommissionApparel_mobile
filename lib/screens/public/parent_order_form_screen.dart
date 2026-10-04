@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import '../../constants/statuses.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
 import '../../widgets/app_scaffold.dart';
-import '../../data/dummy_stores.dart';
 import '../../models/store_item.dart';
 import '../../services/order_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/parent_order.dart';
 import '../../models/design_catalog.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/managed_image.dart';
+import '../../models/team_store.dart';
+import '../../services/store_service.dart';
 
 class ParentOrderFormScreen extends StatefulWidget {
   final String storeId;
@@ -36,21 +39,39 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
   // StoreItemId -> Entry state
   final Map<String, _OrderItemState> _itemStates = {};
 
-  late final dynamic store;
-  late final List<StoreItem> storeItems;
+  TeamStore? store;
+  List<StoreItem> storeItems = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    store = dummyTeamStores.firstWhere(
-      (s) => s.id == widget.storeId,
-      orElse: () => dummyTeamStores.first,
-    );
-    storeItems = dummyStoreItems.cast<StoreItem>().where((i) => i.teamStoreId == store.id).toList();
+    _loadData();
+  }
 
-    // Initialize state for each available item (unselected by default)
-    for (final item in storeItems) {
-      _itemStates[item.id] = _OrderItemState(item: item);
+  Future<void> _loadData() async {
+    final firestore = context.read<FirebaseFirestore>();
+    try {
+      final fetchedStore = await StoreService.getStoreById(firestore, widget.storeId);
+      if (fetchedStore == null) {
+        if (mounted) setState(() { _error = 'Store not found'; _isLoading = false; });
+        return;
+      }
+      final items = await StoreService.getStoreItems(firestore, widget.storeId);
+      
+      if (mounted) {
+        setState(() {
+          store = fetchedStore;
+          storeItems = items;
+          for (final item in items) {
+            _itemStates[item.id] = _OrderItemState(item: item);
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = 'Error loading store'; _isLoading = false; });
     }
   }
 
@@ -131,7 +152,8 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
 
     final newOrder = ParentOrder(
       id: 'order-${DateTime.now().millisecondsSinceEpoch}',
-      teamStoreId: store.id,
+      teamStoreId: store!.id,
+      storeName: store!.name,
       userId: parentUserId,
       athleteFirstName: _firstNameController.text.trim(),
       athleteLastName: _lastNameController.text.trim(),
@@ -142,6 +164,7 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
       specialNotes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       itemEntries: entries,
       totalRetailPrice: retailTotal,
+      statusHistory: [StatusEvent(status: OrderStatus.pending, at: DateTime.now(), by: parentUserId)],
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -159,7 +182,7 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Successfully placed order for ${newOrder.athleteFirstName} ${newOrder.athleteLastName}!'),
-            if (store.paymentInstructions != null && store.paymentInstructions!.isNotEmpty) ...[
+            if (store!.paymentInstructions != null && store!.paymentInstructions!.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text('Payment Instructions from Coach:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
@@ -171,7 +194,7 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
                 ),
-                child: Text(store.paymentInstructions!, style: const TextStyle(fontSize: 16)),
+                child: Text(store!.paymentInstructions!, style: const TextStyle(fontSize: 16)),
               ),
             ],
           ],
@@ -191,12 +214,28 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!store.isAcceptingOrders) {
+    if (_isLoading) {
+      return const AppScaffold(
+        title: 'Loading store...',
+        currentNavIndex: 2,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    if (_error != null || store == null) {
+      return AppScaffold(
+        title: 'Error',
+        currentNavIndex: 2,
+        body: Center(child: Text(_error ?? 'Failed to load store')),
+      );
+    }
+    
+    if (!store!.isAcceptingOrders) {
       return AppScaffold(
         title: 'Store Closed',
         currentNavIndex: 2,
         body: Center(
-          child: Text('This store is not accepting orders: ${store.closedReason}'),
+          child: Text('This store is not accepting orders: ${store!.closedReason}'),
         ),
       );
     }
@@ -330,8 +369,19 @@ class _ParentOrderFormScreenState extends State<ParentOrderFormScreen> {
               });
             },
           ),
-          title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text('\$${item.retailPrice.toStringAsFixed(2)}'),
+          title: Row(
+            children: [
+              if (item.displayImage != null) ...[
+                AppImage(item.displayImage, width: 40, height: 40, fit: BoxFit.cover, borderRadius: BorderRadius.circular(4)),
+                const SizedBox(width: 12),
+              ],
+              Expanded(child: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold))),
+            ],
+          ),
+          subtitle: Padding(
+            padding: EdgeInsets.only(top: 4, left: item.displayImage != null ? 52 : 0),
+            child: Text('\$${item.retailPrice.toStringAsFixed(2)}'),
+          ),
           children: [
             if (state.selected)
               Padding(
@@ -482,5 +532,6 @@ class _OrderItemState {
     return true;
   }
 }
+
 
 

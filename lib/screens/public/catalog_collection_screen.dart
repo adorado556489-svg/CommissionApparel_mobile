@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme.dart';
 import '../../widgets/app_scaffold.dart';
+
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../models/design_collection.dart';
 import '../../services/catalog_service.dart';
 import '../../models/design_catalog.dart';
+import '../../widgets/managed_image.dart';
 
 class CatalogCollectionScreen extends StatefulWidget {
   final String collectionId;
@@ -13,7 +17,8 @@ class CatalogCollectionScreen extends StatefulWidget {
   const CatalogCollectionScreen({super.key, required this.collectionId});
 
   @override
-  State<CatalogCollectionScreen> createState() => _CatalogCollectionScreenState();
+  State<CatalogCollectionScreen> createState() =>
+      _CatalogCollectionScreenState();
 }
 
 class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
@@ -34,7 +39,9 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
     final catalog = await CatalogService.getAllDesignCatalog(firestore);
     if (mounted) {
       setState(() {
-        _collection = collections.firstWhere((c) => c.id == widget.collectionId, orElse: () => collections.first);
+        _collection = collections
+            .where((c) => c.id == widget.collectionId)
+            .firstOrNull;
         _catalogItems = catalog;
         _isLoading = false;
       });
@@ -43,14 +50,32 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const AppScaffold(title: 'Collection', body: Center(child: CircularProgressIndicator()));
-    final collection = _collection!;
-
+    if (_isLoading)
+      return const AppScaffold(
+        title: 'Collection',
+        body: Center(child: CircularProgressIndicator()),
+      );
+    final collection = _collection;
+    if (collection == null) {
+      return AppScaffold(
+        title: 'Collection',
+        currentNavIndex: 2,
+        body: const Center(
+          child: Text('This collection is no longer available.'),
+        ),
+      );
+    }
 
     // Filter designs
-    var designs = _catalogItems.where((d) => d.designCollectionId == collection.id).toList();
-    
-    final availableSports = designs.map((d) => d.sport).whereType<String>().toSet().toList();
+    var designs = _catalogItems
+        .where((d) => d.designCollectionId == collection.id)
+        .toList();
+
+    final availableSports = designs
+        .map((d) => d.sport)
+        .whereType<String>()
+        .toSet()
+        .toList();
     availableSports.insert(0, 'All Sports');
 
     if (_selectedSport != 'All Sports') {
@@ -99,7 +124,10 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
                 onTap: () => Navigator.of(context).pop(),
                 child: Text(
                   'DESIGN COLLECTIONS',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppTheme.secondary, fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppTheme.secondary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -107,14 +135,20 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
               const SizedBox(width: 8),
               Text(
                 collectionName.toUpperCase(),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppTheme.textMuted, fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppTheme.textMuted,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            _selectedSport != 'All Sports' ? '$collectionName: $_selectedSport'.toUpperCase() : collectionName.toUpperCase(),
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
+            _selectedSport != 'All Sports'
+                ? '$collectionName: $_selectedSport'.toUpperCase()
+                : collectionName.toUpperCase(),
+            style: Theme.of(context).textTheme.headlineMedium
+                ?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 12),
           Text(
@@ -133,7 +167,11 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('FILTER BY CATEGORIES', style: Theme.of(context).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              'FILTER BY CATEGORIES',
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Container(
               width: 200,
@@ -147,9 +185,18 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
                 child: DropdownButton<String>(
                   value: _selectedSport,
                   isExpanded: true,
-                  icon: const Icon(Icons.arrow_drop_down, color: AppTheme.textSecondary),
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: AppTheme.textSecondary,
+                  ),
                   items: sports.map((sport) {
-                    return DropdownMenuItem(value: sport, child: Text(sport, style: Theme.of(context).textTheme.bodyMedium));
+                    return DropdownMenuItem(
+                      value: sport,
+                      child: Text(
+                        sport,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    );
                   }).toList(),
                   onChanged: (val) {
                     if (val != null) setState(() => _selectedSport = val);
@@ -161,7 +208,8 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
         ),
         Text(
           'SHOWING $count DESIGN${count == 1 ? '' : 'S'}',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -200,9 +248,15 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
             child: Container(
               color: AppTheme.primary.withValues(alpha: 0.05),
               width: double.infinity,
-              child: const Center(
-                child: Icon(Icons.image, size: 64, color: AppTheme.borderSubtle),
-              ),
+              child: design.displayImage == null
+                  ? const Center(
+                      child: Icon(
+                        Icons.image,
+                        size: 64,
+                        color: AppTheme.borderSubtle,
+                      ),
+                    )
+                  : AppImage(design.displayImage, fit: BoxFit.cover),
             ),
           ),
           Padding(
@@ -213,20 +267,30 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
                 if (design.category.startsWith('package'))
                   Container(
                     margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.secondary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppTheme.secondary.withValues(alpha: 0.2)),
+                      border: Border.all(
+                        color: AppTheme.secondary.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Text(
                       'PACKAGE',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppTheme.secondary, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppTheme.secondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 Text(
                   design.name,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -243,7 +307,10 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
                   runSpacing: 4,
                   children: design.types.map((type) {
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.surface,
                         borderRadius: BorderRadius.circular(4),
@@ -251,7 +318,8 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
                       ),
                       child: Text(
                         type.toUpperCase(),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 9),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(fontSize: 9),
                       ),
                     );
                   }).toList(),
@@ -271,15 +339,17 @@ class _CatalogCollectionScreenState extends State<CatalogCollectionScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surfaceLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderSubtle, style: BorderStyle.solid),
+        border: Border.all(
+          color: AppTheme.borderSubtle,
+          style: BorderStyle.solid,
+        ),
       ),
       child: Text(
         'NO DESIGNS FOUND.',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.textMuted, fontWeight: FontWeight.bold),
+        style: Theme.of(context).textTheme.labelMedium
+            ?.copyWith(color: AppTheme.textMuted, fontWeight: FontWeight.bold),
         textAlign: TextAlign.center,
       ),
     );
   }
 }
-
-

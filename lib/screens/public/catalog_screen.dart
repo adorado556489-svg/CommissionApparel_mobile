@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme.dart';
 import '../../widgets/app_scaffold.dart';
+
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../services/catalog_service.dart';
 import '../../models/design_collection.dart';
+import '../../widgets/managed_image.dart';
 
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key});
@@ -38,14 +42,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const AppScaffold(title: 'Catalog', body: Center(child: CircularProgressIndicator()));
+      return const AppScaffold(
+        title: 'Catalog',
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
     // Determine unique sports/categories (in dummy data, collections map to sports)
-    final allCategories = ['All Categories', ..._collections.map((c) => c.name)];
+    final allCategories = [
+      'All Categories',
+      ..._collections.map((c) => c.name),
+    ];
 
     // Filter collections based on selection
-    final filteredCollections = _selectedCategory == 'All Categories' 
-        ? _collections 
+    final filteredCollections = _selectedCategory == 'All Categories'
+        ? _collections
         : _collections.where((c) => c.name == _selectedCategory).toList();
 
     return AppScaffold(
@@ -86,12 +96,16 @@ class _CatalogScreenState extends State<CatalogScreen> {
         children: [
           Text(
             'DESIGN COLLECTIONS',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppTheme.secondary, fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppTheme.secondary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'VIEW FULL CATALOG',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
+            style: Theme.of(context).textTheme.headlineMedium
+                ?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 12),
           Text(
@@ -107,7 +121,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('FILTER BY CATEGORIES', style: Theme.of(context).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          'FILTER BY CATEGORIES',
+          style: Theme.of(context).textTheme.labelMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 12),
         Container(
           width: 250,
@@ -122,9 +140,18 @@ class _CatalogScreenState extends State<CatalogScreen> {
               value: _selectedCategory,
               dropdownColor: Theme.of(context).cardColor,
               isExpanded: true,
-              icon: const Icon(Icons.arrow_drop_down, color: AppTheme.textSecondary),
+              icon: const Icon(
+                Icons.arrow_drop_down,
+                color: AppTheme.textSecondary,
+              ),
               items: categories.map((cat) {
-                return DropdownMenuItem(value: cat, child: Text(cat, style: Theme.of(context).textTheme.bodyMedium));
+                return DropdownMenuItem(
+                  value: cat,
+                  child: Text(
+                    cat,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                );
               }).toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _selectedCategory = val);
@@ -151,7 +178,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
         final collection = collections[index];
         return InkWell(
           onTap: () {
-            Navigator.of(context).pushNamed('/catalog/collection', arguments: collection.id);
+            Navigator.of(context)
+                .pushNamed('/catalog/collection', arguments: collection.id);
           },
           borderRadius: BorderRadius.circular(12),
           child: Container(
@@ -164,24 +192,34 @@ class _CatalogScreenState extends State<CatalogScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // In a real app we'd load the collection image.
-                // Using placeholder colors for dummy data
-                Container(
-                  color: AppTheme.primary.withValues(alpha: 0.1),
-                  child: const Center(
-                    child: Icon(Icons.image, size: 48, color: AppTheme.borderSubtle),
-                  ),
-                ),
+                collection.imagePath != null
+                    ? AppImage(collection.imagePath, fit: BoxFit.cover)
+                    : Container(
+                        color: AppTheme.primary.withValues(alpha: 0.1),
+                        child: const Center(
+                          child: Icon(
+                            Icons.image,
+                            size: 48,
+                            color: AppTheme.borderSubtle,
+                          ),
+                        ),
+                      ),
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
                   child: Container(
                     color: Colors.black.withValues(alpha: 0.7),
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 16,
+                    ),
                     child: Text(
                       collection.name,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -203,14 +241,17 @@ class _CatalogScreenState extends State<CatalogScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderSubtle, style: BorderStyle.solid),
+        border: Border.all(
+          color: AppTheme.borderSubtle,
+          style: BorderStyle.solid,
+        ),
       ),
       child: Text(
         'NO DESIGN COLLECTIONS AVAILABLE YET.',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.textMuted, fontWeight: FontWeight.bold),
+        style: Theme.of(context).textTheme.labelMedium
+            ?.copyWith(color: AppTheme.textMuted, fontWeight: FontWeight.bold),
         textAlign: TextAlign.center,
       ),
     );
   }
 }
-

@@ -20,15 +20,14 @@ class AppNavBar extends StatelessWidget {
       return const [
         _NavItem('Home', Icons.home_outlined, '/home'),
         _NavItem('Dashboard', Icons.dashboard_outlined, '/admin/dashboard'),
-        _NavItem('Catalog', Icons.view_list_outlined, '/catalog'),
         _NavItem('Account', Icons.person_outline, '/account'),
       ];
     }
     return [
       const _NavItem('Home', Icons.home_outlined, '/home'),
-      if (auth.currentRole == UserRole.coach || auth.hasApprovedStore)
+      if (auth.currentRole == UserRole.coach)
         const _NavItem('My Store', Icons.storefront_outlined, '/coach/dashboard'),
-      const _NavItem('Catalog', Icons.view_list_outlined, '/catalog'),
+      const _NavItem('Stores', Icons.explore_outlined, '/store/search'),
       const _NavItem('Orders', Icons.receipt_long_outlined, '/orders'),
       const _NavItem('Account', Icons.person_outline, '/account'),
     ];
@@ -49,6 +48,8 @@ class AppNavBar extends StatelessWidget {
     if (idx < 0) {
       if (route.startsWith('/catalog')) {
         idx = items.indexWhere((i) => i.route == '/catalog');
+      } else if (route.startsWith('/store')) {
+        idx = items.indexWhere((i) => i.route == '/store/search');
       } else if (route.startsWith('/coach')) {
         idx = items.indexWhere((i) => i.route == '/coach/dashboard');
       } else if (route.startsWith('/admin')) {

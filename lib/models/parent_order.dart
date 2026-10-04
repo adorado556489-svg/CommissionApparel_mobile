@@ -1,38 +1,43 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Parent order model matching the Laravel ParentOrder Eloquent model.
+import '../constants/statuses.dart';
+
+/// A parent's order for one athlete in a team store.
 ///
-/// Represents a parent's order for a specific athlete in a team store.
-/// The order contains athlete info, selected items with sizes/quantities
-/// in a structured [itemEntries] list, and pricing totals.
-///
-/// Key workflow: Orders are created by parents -> approved by coaches ->
-/// batched (grouped by batchId) -> submitted to admin for processing.
+/// Workflow: placed (Pending) -> coach marks paid -> coach submits master
+/// order (Submitted, batched by [batchId]) -> admin moves through
+/// In Production -> Shipped -> Delivered. Every transition is appended to
+/// [statusHistory].
 class ParentOrder {
   final String id;
   final String? teamStoreId; // FK -> TeamStore
-  final String? userId; // FK -> User (parent, null for direct orders)
+  final String? storeName; // denormalised for order history
+  final String? userId; // FK -> User (parent)
   final String athleteFirstName;
   final String athleteLastName;
   final String? gender;
   final String? jerseyName; // name printed on jersey
   final String? jerseyNumber;
-  final String? backpackName; // name on backpack
+  final String? backpackName; // legacy
+  final String? contactPhone; // parent contact for the coach
   final List<OrderItemEntry> itemEntries; // structured items data
   final String? specialNotes;
-  final String status; // 'Pending Coach Approval', 'Submitted to Admin', etc
+  final String status; // see OrderStatus
+  final List<StatusEvent> statusHistory;
+  final String? trackingNumber;
   final bool isEdited;
   final String? editedBy; // user ID who last edited
   final double totalRetailPrice;
-  final String? batchId; // UUID grouping finalized orders
+  final String? batchId; // groups orders of one master order
   final bool isArchived;
-  final bool isPaid; // Tracks if the coach has collected payment
+  final bool isPaid; // coach has collected payment
   final DateTime createdAt;
   final DateTime updatedAt;
 
   const ParentOrder({
     required this.id,
     this.teamStoreId,
+    this.storeName,
     this.userId,
     required this.athleteFirstName,
     required this.athleteLastName,
@@ -40,9 +45,12 @@ class ParentOrder {
     this.jerseyName,
     this.jerseyNumber,
     this.backpackName,
+    this.contactPhone,
     this.itemEntries = const [],
     this.specialNotes,
-    this.status = 'Pending Coach Approval',
+    this.status = OrderStatus.pending,
+    this.statusHistory = const [],
+    this.trackingNumber,
     this.isEdited = false,
     this.editedBy,
     this.totalRetailPrice = 0.0,
@@ -55,10 +63,11 @@ class ParentOrder {
 
   factory ParentOrder.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-    
+
     return ParentOrder(
       id: doc.id,
       teamStoreId: data['teamStoreId'],
+      storeName: data['storeName'],
       userId: data['userId'],
       athleteFirstName: data['athleteFirstName'] ?? '',
       athleteLastName: data['athleteLastName'] ?? '',
@@ -66,11 +75,16 @@ class ParentOrder {
       jerseyName: data['jerseyName'],
       jerseyNumber: data['jerseyNumber'],
       backpackName: data['backpackName'],
+      contactPhone: data['contactPhone'],
       itemEntries: (data['itemEntries'] as List<dynamic>? ?? [])
-          .map((item) => OrderItemEntry.fromMap(item as Map<String, dynamic>))
+          .map((item) => OrderItemEntry.fromMap(Map<String, dynamic>.from(item as Map)))
           .toList(),
       specialNotes: data['specialNotes'],
-      status: data['status'] ?? 'Pending Coach Approval',
+      status: data['status'] ?? OrderStatus.pending,
+      statusHistory: (data['statusHistory'] as List<dynamic>? ?? [])
+          .map((e) => StatusEvent.fromMap(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+      trackingNumber: data['trackingNumber'],
       isEdited: data['isEdited'] ?? false,
       editedBy: data['editedBy'],
       totalRetailPrice: (data['totalRetailPrice'] as num?)?.toDouble() ?? 0.0,
@@ -85,6 +99,7 @@ class ParentOrder {
   Map<String, dynamic> toFirestore() {
     return {
       'teamStoreId': teamStoreId,
+      'storeName': storeName,
       'userId': userId,
       'athleteFirstName': athleteFirstName,
       'athleteLastName': athleteLastName,
@@ -92,9 +107,12 @@ class ParentOrder {
       'jerseyName': jerseyName,
       'jerseyNumber': jerseyNumber,
       'backpackName': backpackName,
+      'contactPhone': contactPhone,
       'itemEntries': itemEntries.map((e) => e.toMap()).toList(),
       'specialNotes': specialNotes,
       'status': status,
+      'statusHistory': statusHistory.map((e) => e.toMap()).toList(),
+      'trackingNumber': trackingNumber,
       'isEdited': isEdited,
       'editedBy': editedBy,
       'totalRetailPrice': totalRetailPrice,
@@ -106,7 +124,7 @@ class ParentOrder {
     };
   }
 
-  // Lifecycle Computed Properties
+  // ---- Computed -----------------------------------------------------------
 
   String get athleteName => '$athleteFirstName $athleteLastName';
 
@@ -114,16 +132,33 @@ class ParentOrder {
 
   bool get isBatched => batchId != null;
 
-  bool get isEditable =>
-      status == 'Pending Coach Approval' && !isBatched && !isArchived;
+  bool get isCancelled => status == OrderStatus.cancelled;
 
-  int get totalItemCount {
-    int count = 0;
-    for (final entry in itemEntries) {
-      count += entry.quantity;
-    }
-    return count;
-  }
+  bool get isEditable =>
+      status == OrderStatus.pending && !isBatched && !isArchived;
+
+  /// Parent may cancel only before the coach has collected payment.
+  bool get isCancellable => isEditable && !isPaid;
+
+  String get statusLabel => OrderStatus.label(status);
+
+  int get totalItemCount =>
+      itemEntries.fold(0, (sum, entry) => sum + entry.quantity);
+
+  /// Retail total recomputed from immutable line snapshots.
+  double get snapshotRetailTotal =>
+      itemEntries.fold(0.0, (sum, e) => sum + e.retailPrice * e.quantity);
+
+  /// Platform base-cost total from immutable line snapshots.
+  double get snapshotBaseTotal =>
+      itemEntries.fold(0.0, (sum, e) => sum + e.wholesalePrice * e.quantity);
+
+  /// Best available retail total (snapshots first, stored total as fallback).
+  double get effectiveRetailTotal =>
+      snapshotRetailTotal > 0 ? snapshotRetailTotal : totalRetailPrice;
+
+  /// Coach earnings for this order: retail - base cost.
+  double get coachEarnings => effectiveRetailTotal - snapshotBaseTotal;
 
   double calculateTotalRetail(Map<String, double> retailPrices) {
     double total = 0;
@@ -134,6 +169,8 @@ class ParentOrder {
     return total;
   }
 
+  /// Aggregates financials for a set of orders using the price snapshots
+  /// stored on each order line (immune to later price edits).
   static BatchFinancials calculateBatchFinancials({
     required List<ParentOrder> orders,
     Map<String, double>? retailPrices, // Legacy fallback
@@ -143,11 +180,13 @@ class ParentOrder {
     double totalWholesaleCost = 0;
     int totalItemsSold = 0;
 
-    for (final order in orders) {
-      totalSales += order.totalRetailPrice;
+    final counted = orders.where((o) => !o.isCancelled).toList();
+    for (final order in counted) {
+      totalSales += order.effectiveRetailTotal;
       for (final entry in order.itemEntries) {
-        // Use snapshot price if > 0, else fallback to legacy maps
-        final wholesale = entry.wholesalePrice > 0 ? entry.wholesalePrice : (wholesalePrices?[entry.storeItemId] ?? 0);
+        final wholesale = entry.wholesalePrice > 0
+            ? entry.wholesalePrice
+            : (wholesalePrices?[entry.storeItemId] ?? 0);
         totalWholesaleCost += wholesale * entry.quantity;
         totalItemsSold += entry.quantity;
       }
@@ -158,15 +197,15 @@ class ParentOrder {
       totalWholesaleCost: totalWholesaleCost,
       netProceeds: totalSales - totalWholesaleCost,
       totalItemsSold: totalItemsSold,
-      orderCount: orders.length,
-      averageOrderValue:
-          orders.isEmpty ? 0 : totalSales / orders.length,
+      orderCount: counted.length,
+      averageOrderValue: counted.isEmpty ? 0 : totalSales / counted.length,
     );
   }
 
   ParentOrder copyWith({
     String? id,
     String? teamStoreId,
+    String? storeName,
     String? userId,
     String? athleteFirstName,
     String? athleteLastName,
@@ -174,20 +213,26 @@ class ParentOrder {
     String? jerseyName,
     String? jerseyNumber,
     String? backpackName,
+    String? contactPhone,
     List<OrderItemEntry>? itemEntries,
     String? specialNotes,
     String? status,
+    List<StatusEvent>? statusHistory,
+    String? trackingNumber,
     bool? isEdited,
     String? editedBy,
     double? totalRetailPrice,
     String? batchId,
+    bool clearBatchId = false,
     bool? isArchived,
+    bool? isPaid,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return ParentOrder(
       id: id ?? this.id,
       teamStoreId: teamStoreId ?? this.teamStoreId,
+      storeName: storeName ?? this.storeName,
       userId: userId ?? this.userId,
       athleteFirstName: athleteFirstName ?? this.athleteFirstName,
       athleteLastName: athleteLastName ?? this.athleteLastName,
@@ -195,14 +240,18 @@ class ParentOrder {
       jerseyName: jerseyName ?? this.jerseyName,
       jerseyNumber: jerseyNumber ?? this.jerseyNumber,
       backpackName: backpackName ?? this.backpackName,
+      contactPhone: contactPhone ?? this.contactPhone,
       itemEntries: itemEntries ?? this.itemEntries,
       specialNotes: specialNotes ?? this.specialNotes,
       status: status ?? this.status,
+      statusHistory: statusHistory ?? this.statusHistory,
+      trackingNumber: trackingNumber ?? this.trackingNumber,
       isEdited: isEdited ?? this.isEdited,
       editedBy: editedBy ?? this.editedBy,
       totalRetailPrice: totalRetailPrice ?? this.totalRetailPrice,
-      batchId: batchId ?? this.batchId,
+      batchId: clearBatchId ? null : (batchId ?? this.batchId),
       isArchived: isArchived ?? this.isArchived,
+      isPaid: isPaid ?? this.isPaid,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -213,9 +262,34 @@ class ParentOrder {
       'ParentOrder($id, $athleteName, status=$status, \$$totalRetailPrice)';
 }
 
+/// One entry of an order's status timeline.
+class StatusEvent {
+  final String status;
+  final DateTime at;
+  final String? by; // user id
+  final String? note;
+
+  const StatusEvent({required this.status, required this.at, this.by, this.note});
+
+  factory StatusEvent.fromMap(Map<String, dynamic> map) => StatusEvent(
+        status: map['status'] ?? '',
+        at: (map['at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        by: map['by'],
+        note: map['note'],
+      );
+
+  Map<String, dynamic> toMap() => {
+        'status': status,
+        'at': Timestamp.fromDate(at),
+        'by': by,
+        'note': note,
+      };
+}
+
 /// A single item entry in a parent order.
 ///
-/// Maps to one element in the Laravel items_json array.
+/// [retailPrice] and [wholesalePrice] are immutable snapshots taken at order
+/// time so later price edits never change historical totals.
 /// For packages, [components] contains the sub-component items.
 class OrderItemEntry {
   final String storeItemId; // FK -> StoreItem
@@ -225,6 +299,7 @@ class OrderItemEntry {
   final int quantity;
   final double retailPrice;
   final double wholesalePrice;
+  final String? imageUrl; // denormalized thumbnail
   final List<OrderItemComponent> components; // sub-items for packages
 
   const OrderItemEntry({
@@ -235,6 +310,7 @@ class OrderItemEntry {
     this.quantity = 1,
     this.retailPrice = 0.0,
     this.wholesalePrice = 0.0,
+    this.imageUrl,
     this.components = const [],
   });
 
@@ -244,11 +320,12 @@ class OrderItemEntry {
       name: map['name'] ?? '',
       types: List<String>.from(map['types'] ?? []),
       sizes: Map<String, String>.from(map['sizes'] ?? {}),
-      quantity: map['quantity'] ?? 1,
+      quantity: (map['quantity'] as num?)?.toInt() ?? 1,
       retailPrice: (map['retailPrice'] as num?)?.toDouble() ?? 0.0,
       wholesalePrice: (map['wholesalePrice'] as num?)?.toDouble() ?? 0.0,
+      imageUrl: map['imageUrl'],
       components: (map['components'] as List<dynamic>? ?? [])
-          .map((c) => OrderItemComponent.fromMap(c as Map<String, dynamic>))
+          .map((c) => OrderItemComponent.fromMap(Map<String, dynamic>.from(c as Map)))
           .toList(),
     );
   }
@@ -262,17 +339,20 @@ class OrderItemEntry {
       'quantity': quantity,
       'retailPrice': retailPrice,
       'wholesalePrice': wholesalePrice,
+      'imageUrl': imageUrl,
       'components': components.map((c) => c.toMap()).toList(),
     };
   }
 
   bool get isPackage => components.isNotEmpty;
+
+  double get lineTotal => retailPrice * quantity;
+
+  String get sizeSummary =>
+      sizes.entries.map((e) => sizes.length == 1 ? e.value : '${e.key}: ${e.value}').join(', ');
 }
 
 /// A sub-component within a package order item entry.
-///
-/// Represents individual garments within a package (e.g., the "Shorts"
-/// component within a "Basketball Package" entry).
 class OrderItemComponent {
   final String storeItemId; // FK -> StoreItem (component)
   final String name; // e.g. 'Shorts'
@@ -302,12 +382,10 @@ class OrderItemComponent {
 }
 
 /// Aggregate financial summary for a batch of orders.
-///
-/// Returned by [ParentOrder.calculateBatchFinancials].
 class BatchFinancials {
   final double totalSales;
-  final double totalWholesaleCost;
-  final double netProceeds;
+  final double totalWholesaleCost; // platform revenue (base cost)
+  final double netProceeds; // coach earnings
   final int totalItemsSold;
   final int orderCount;
   final double averageOrderValue;
@@ -321,8 +399,17 @@ class BatchFinancials {
     required this.averageOrderValue,
   });
 
+  static const empty = BatchFinancials(
+    totalSales: 0,
+    totalWholesaleCost: 0,
+    netProceeds: 0,
+    totalItemsSold: 0,
+    orderCount: 0,
+    averageOrderValue: 0,
+  );
+
   @override
   String toString() =>
-      'BatchFinancials(sales=, net=, '
-      'items=, orders=)';
+      'BatchFinancials(sales=$totalSales, base=$totalWholesaleCost, net=$netProceeds, '
+      'items=$totalItemsSold, orders=$orderCount)';
 }

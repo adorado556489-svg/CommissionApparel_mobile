@@ -94,7 +94,7 @@ class _AdminHeroEditScreenState extends State<AdminHeroEditScreen> {
                         onPressed: () async {
                           final picked = await _picker.pickImage(source: ImageSource.gallery);
                           if (picked != null) {
-                            String? url = await StorageService().uploadFile('hero', File(picked.path)); if (url != null) { _save(url); }
+                            String url = await StorageService().uploadFile('hero', File(picked.path)); _save(url);
                           }
                         },
                       ),

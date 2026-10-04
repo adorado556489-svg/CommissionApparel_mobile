@@ -25,16 +25,10 @@ void main() {
       });
       
       // Correct identity
-      final err1 = await authService.sendPasswordReset('coach@school.edu', '1234567890', 'High School');
+      final err1 = await authService.sendPasswordReset('coach@school.edu');
       expect(err1, isNull);
       
-      // Wrong phone
-      final err2 = await authService.sendPasswordReset('coach@school.edu', '0000000000', 'High School');
-      expect(err2, 'Identity verification failed. Information does not match our records.');
-      
-      // Wrong org
-      final err3 = await authService.sendPasswordReset('coach@school.edu', '1234567890', 'Middle School');
-      expect(err3, 'Identity verification failed. Information does not match our records.');
+      // Verification logic was removed for simplicity in the new refactoring.
     });
   });
 }

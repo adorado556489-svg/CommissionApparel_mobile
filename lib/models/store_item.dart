@@ -1,21 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Store item model matching the Laravel StoreItem Eloquent model.
-///
-/// Represents a product in a team store, linked to a design catalog entry.
-/// Coaches set retail prices (must be >= wholesale). Items can be packages
-/// containing sub-component items.
+/// A product in a team store, created by the coach from an admin blank
+/// ([designCatalogId]). The coach controls name, design image, retail price,
+/// description and collection; [wholesalePrice] (base cost) is copied from
+/// the blank and is not editable by the coach.
 class StoreItem {
   final String id;
   final String teamStoreId; // FK -> TeamStore
-  final String? designCatalogId; // FK -> DesignCatalog
-  final String? collectionId; // FK -> DesignCollection (Coach custom collection)
+  final String? designCatalogId; // FK -> DesignCatalog (admin blank)
+  final String? collectionId; // FK -> DesignCollection (coach collection)
   final String name;
+  final String? description;
   final List<String> types; // garment types, e.g. ['Jersey', 'Shorts']
   final String? imageUrl; // legacy single image
-  final List<String> imagePaths; // multiple images
-  final double wholesalePrice;
-  final double retailPrice;
+  final List<String> imagePaths; // design/product images (HTTPS)
+  final double wholesalePrice; // base cost (platform)
+  final double retailPrice; // coach price
+  final bool hasNameField; // personalised name printed
+  final bool hasNumberField; // personalised number printed
+  final List<String> availableSizes; // empty = default size chart
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -29,11 +32,15 @@ class StoreItem {
     this.designCatalogId,
     this.collectionId,
     required this.name,
+    this.description,
     this.types = const [],
     this.imageUrl,
     this.imagePaths = const [],
     this.wholesalePrice = 0.0,
     this.retailPrice = 0.0,
+    this.hasNameField = false,
+    this.hasNumberField = false,
+    this.availableSizes = const [],
     this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
@@ -48,11 +55,15 @@ class StoreItem {
       designCatalogId: data['designCatalogId'],
       collectionId: data['collectionId'],
       name: data['name'] ?? '',
+      description: data['description'],
       types: List<String>.from(data['types'] ?? []),
       imageUrl: data['imageUrl'],
       imagePaths: List<String>.from(data['imagePaths'] ?? []),
       wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble() ?? 0.0,
       retailPrice: (data['retailPrice'] as num?)?.toDouble() ?? 0.0,
+      hasNameField: data['hasNameField'] ?? false,
+      hasNumberField: data['hasNumberField'] ?? false,
+      availableSizes: List<String>.from(data['availableSizes'] ?? []),
       sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -66,11 +77,15 @@ class StoreItem {
       'designCatalogId': designCatalogId,
       'collectionId': collectionId,
       'name': name,
+      'description': description,
       'types': types,
       'imageUrl': imageUrl,
       'imagePaths': imagePaths,
       'wholesalePrice': wholesalePrice,
       'retailPrice': retailPrice,
+      'hasNameField': hasNameField,
+      'hasNumberField': hasNumberField,
+      'availableSizes': availableSizes,
       'sortOrder': sortOrder,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -89,17 +104,25 @@ class StoreItem {
 
   bool get hasValidPricing => retailPrice >= wholesalePrice;
 
+  /// Whether the order form must collect a personalisation for this item.
+  bool get needsPersonalisation => hasNameField || hasNumberField;
+
   StoreItem copyWith({
     String? id,
     String? teamStoreId,
     String? designCatalogId,
     String? collectionId,
+    bool clearCollection = false,
     String? name,
+    String? description,
     List<String>? types,
     String? imageUrl,
     List<String>? imagePaths,
     double? wholesalePrice,
     double? retailPrice,
+    bool? hasNameField,
+    bool? hasNumberField,
+    List<String>? availableSizes,
     int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -109,13 +132,17 @@ class StoreItem {
       id: id ?? this.id,
       teamStoreId: teamStoreId ?? this.teamStoreId,
       designCatalogId: designCatalogId ?? this.designCatalogId,
-      collectionId: collectionId ?? this.collectionId,
+      collectionId: clearCollection ? null : (collectionId ?? this.collectionId),
       name: name ?? this.name,
+      description: description ?? this.description,
       types: types ?? this.types,
       imageUrl: imageUrl ?? this.imageUrl,
       imagePaths: imagePaths ?? this.imagePaths,
       wholesalePrice: wholesalePrice ?? this.wholesalePrice,
       retailPrice: retailPrice ?? this.retailPrice,
+      hasNameField: hasNameField ?? this.hasNameField,
+      hasNumberField: hasNumberField ?? this.hasNumberField,
+      availableSizes: availableSizes ?? this.availableSizes,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

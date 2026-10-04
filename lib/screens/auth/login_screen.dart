@@ -185,43 +185,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // ── Test credentials hint ──────────────────────────────
-                GlassPanel(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Test Accounts',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      _credentialRow(
-                        context,
-                        'Admin',
-                        'admin@commissionapparel.com',
-                      ),
-                      _credentialRow(
-                        context,
-                        'Coach',
-                        'coach@example.com',
-                      ),
-                      _credentialRow(
-                        context,
-                        'Parent',
-                        'parent@test.com',
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Any non-empty password works',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
                 // ── Back to home ───────────────────────────────────────
                 TextButton.icon(
                   onPressed:
@@ -237,24 +200,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  Widget _credentialRow(BuildContext context, String role, String email) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 56,
-            child: Text(
-              '$role:',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          Text(email, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
-    );
-  }
 }
-
-

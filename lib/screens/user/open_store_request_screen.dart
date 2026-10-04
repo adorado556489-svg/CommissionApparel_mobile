@@ -148,6 +148,7 @@ class _OpenStoreRequestScreenState extends State<OpenStoreRequestScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: _selectedSport,
                       decoration: const InputDecoration(
                         labelText: 'Primary Sport',
@@ -167,16 +168,17 @@ class _OpenStoreRequestScreenState extends State<OpenStoreRequestScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: _selectedPackageType,
                       decoration: const InputDecoration(
                         labelText: 'Apparel Package Type',
                         prefixIcon: Icon(Icons.inventory_2),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'package_a', child: Text('Package A - Essential Team Kit')),
-                        DropdownMenuItem(value: 'package_b', child: Text('Package B - Pro Performance Kit')),
-                        DropdownMenuItem(value: 'package_c', child: Text('Package C - Championship Bundle')),
-                        DropdownMenuItem(value: 'individual', child: Text('Individual Custom Orders')),
+                        DropdownMenuItem(value: 'package_a', child: Text('Package A - Essential Team Kit', overflow: TextOverflow.ellipsis)),
+                        DropdownMenuItem(value: 'package_b', child: Text('Package B - Pro Performance Kit', overflow: TextOverflow.ellipsis)),
+                        DropdownMenuItem(value: 'package_c', child: Text('Package C - Championship Bundle', overflow: TextOverflow.ellipsis)),
+                        DropdownMenuItem(value: 'individual', child: Text('Individual Custom Orders', overflow: TextOverflow.ellipsis)),
                       ],
                       onChanged: (val) {
                         if (val != null) setState(() => _selectedPackageType = val);

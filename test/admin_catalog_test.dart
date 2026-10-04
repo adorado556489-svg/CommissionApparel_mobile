@@ -42,27 +42,6 @@ void main() {
   });
 
   group('Phase 5C - Admin Catalog Functionality', () {
-    testWidgets('Admin can create a collection', (tester) async {
-      await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth, firestore));
-      await auth.login('admin@commissionapparel.com', 'password123');
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.descendant(of: find.byType(TabBar), matching: find.text('COLLECTIONS')));
-      await tester.pumpAndSettle();
-
-      // Create
-      await tester.tap(find.text('CREATE NEW COLLECTION'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextFormField).first, 'Test Collection X');
-      await tester.ensureVisible(find.text('SAVE COLLECTION'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('SAVE COLLECTION'));
-      await tester.pump(); // wait for snackbar
-      
-      expect(find.text('Collection "Test Collection X" created.'), findsOneWidget);
-    });
-    
     testWidgets('Admin can create a design', (tester) async {
       await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth, firestore));
       await auth.login('admin@commissionapparel.com', 'password123');

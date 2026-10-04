@@ -56,7 +56,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       password: _passwordController.text,
       organization: _organizationController.text,
       phone: _phoneController.text,
-      sport: _selectedSport,
     );
 
     if (error == null) {

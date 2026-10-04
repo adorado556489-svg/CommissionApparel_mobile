@@ -2,10 +2,71 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/parent_order.dart';
 import '../models/user.dart';
 import '../constants/firestore_paths.dart';
+import '../constants/statuses.dart';
 import 'package:flutter/foundation.dart';
 
 class OrderService {
-  static Future<List<ParentOrder>> getOrdersForStore(dynamic firestore, String storeId) async { return []; }
+  /// All orders placed in [storeId], newest first.
+  static Future<List<ParentOrder>> getOrdersForStore(dynamic firestore, String storeId) async {
+    final fs = firestore as FirebaseFirestore;
+    try {
+      final qs = await fs.collection(FirestorePaths.parentOrders).where('teamStoreId', isEqualTo: storeId).get();
+      return qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } catch (e) {
+      debugPrint('OrderService.getOrdersForStore: $e');
+      rethrow;
+    }
+  }
+
+  /// Live list of all orders placed in [storeId], newest first.
+  static Stream<List<ParentOrder>> watchOrdersForStore(FirebaseFirestore firestore, String storeId) {
+    return firestore
+        .collection(FirestorePaths.parentOrders)
+        .where('teamStoreId', isEqualTo: storeId)
+        .snapshots()
+        .map((qs) => qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  }
+
+  /// Orders that belong to a submitted master order (any production stage),
+  /// for admin monitoring.
+  static Future<List<ParentOrder>> getBatchedOrders(FirebaseFirestore firestore) async {
+    try {
+      final qs = await firestore
+          .collection(FirestorePaths.parentOrders)
+          .where('status', whereIn: [
+            OrderStatus.submitted,
+            OrderStatus.inProduction,
+            OrderStatus.shipped,
+            OrderStatus.delivered,
+            OrderStatus.legacyProcessing,
+          ])
+          .get();
+      return qs.docs
+          .map((d) => ParentOrder.fromFirestore(d))
+          .where((o) => o.batchId != null)
+          .toList();
+    } catch (e) {
+      debugPrint('OrderService.getBatchedOrders: $e');
+      rethrow;
+    }
+  }
+
+  /// Coach marks an order paid / unpaid (only the `isPaid` flag changes).
+  static Future<String?> setOrderPaid(FirebaseFirestore firestore, String orderId, bool paid) async {
+    try {
+      await firestore.collection(FirestorePaths.parentOrders).doc(orderId).update({
+        'isPaid': paid,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return null;
+    } catch (e) {
+      debugPrint('OrderService.setOrderPaid: $e');
+      return 'Could not update payment status. Please try again.';
+    }
+  }
+
 
   static Stream<List<ParentOrder>> getUnbatchedOrdersForStoreStream(FirebaseFirestore firestore, String storeId) {
     return firestore.collection('parentOrders').where('teamStoreId', isEqualTo: storeId).where('status', isEqualTo: 'Pending Coach Approval').snapshots().map<List<ParentOrder>>((snapshot) => snapshot.docs.map((doc) => ParentOrder.fromFirestore(doc as DocumentSnapshot)).toList());
@@ -173,7 +234,10 @@ class OrderService {
           .where('teamStoreId', isEqualTo: storeId)
           .where('batchId', isNull: true)
           .get();
-      unbatched = qs.docs.map((d) => ParentOrder.fromFirestore(d)).toList();
+      unbatched = qs.docs
+          .map((d) => ParentOrder.fromFirestore(d))
+          .where((o) => !o.isCancelled)
+          .toList();
     } catch (e) {
       _handleError(e, 'OrderService.submitStoreOrdersToAdmin');
       return e.toString();
@@ -181,14 +245,17 @@ class OrderService {
     
     try {
       final batch = firestore.batch();
+      final event = StatusEvent(status: OrderStatus.submitted, at: DateTime.now(), by: currentUser.id).toMap();
       for (var o in unbatched) {
         final ref = firestore.collection(_collectionPath).doc(o.id);
         batch.update(ref, {
           'status': 'Submitted to Admin',
           'batchId': batchId,
+          'statusHistory': FieldValue.arrayUnion([event]),
           'updatedAt': FieldValue.serverTimestamp(),
         });
       }
+
       await batch.commit();
     } catch (e) {
       _handleError(e, 'OrderService.submitStoreOrdersToAdmin');

@@ -1,8 +1,6 @@
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
+
 import 'helpers/test_seeder.dart';
-
-
-
-import 'helpers/auto_seeding_mock_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,7 +10,6 @@ import 'package:commission_apparel_flutter/app/theme.dart';
 import 'fixtures/dummy_stores.dart';
 import 'package:commission_apparel_flutter/services/auth_service.dart';
 import 'package:commission_apparel_flutter/screens/admin/admin_dashboard_screen.dart';
-import 'package:commission_apparel_flutter/screens/admin/admin_store_edit_screen.dart';
 
 Widget createTestApp(Widget home, AuthService auth, [FirebaseFirestore? fs]) {
   fs ??= FakeFirebaseFirestore();
@@ -28,6 +25,19 @@ Widget createTestApp(Widget home, AuthService auth, [FirebaseFirestore? fs]) {
   );
 }
 
+/// Finds [text] only inside the open dialog (the page behind has buttons
+/// with the same labels).
+Finder inDialog(String text) =>
+    find.descendant(of: find.byType(AlertDialog), matching: find.text(text));
+
+/// Scrolls [finder] into view (lists are taller than the test viewport) and taps it.
+Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   late FakeFirebaseFirestore firestore;
   late AuthService auth;
@@ -35,8 +45,11 @@ void main() {
   setUp(() async {
     firestore = FakeFirebaseFirestore();
     await TestSeeder.seedAll(firestore);
-        
-    auth = AuthService(firestore: firestore, firebaseAuth: AutoSeedingMockFirebaseAuth());
+
+    auth = AuthService(firestore: firestore, firebaseAuth: MockFirebaseAuth(
+        mockUser: MockUser(uid: 'user-admin-1', email: 'admin@commissionapparel.com'),
+      ),
+    );
     final s4Idx = rawdummyTeamStores.indexWhere((s) => s.id == 'store-4');
     if (s4Idx != -1) {
       rawdummyTeamStores[s4Idx] = rawdummyTeamStores[s4Idx].copyWith(status: 'pending');
@@ -47,116 +60,91 @@ void main() {
     }
   });
 
-  group('Phase 5B - Admin Store Functionality', () {
-    testWidgets('Admin dashboard renders pending stores and campaign stores', (tester) async {
-      await auth.login('admin@commissionapparel.com', 'password123');
-      await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth, firestore));
-      await tester.pumpAndSettle();
+  Future<void> openDashboard(WidgetTester tester) async {
+    await auth.login('admin@commissionapparel.com', 'password123');
+    // Let the auth state listener publish the signed-in user.
+    await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+    await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth, firestore));
+    await tester.pumpAndSettle();
+  }
 
-      expect(find.text('STORES & ORDERS'), findsOneWidget);
-      expect(find.text('CAMPAIGN STORES'), findsOneWidget);
+  group('Admin store monitoring & approval', () {
+    testWidgets('Dashboard shows monitoring tabs only (no merchant actions)', (tester) async {
+      await openDashboard(tester);
+
+      expect(find.textContaining('OVERVIEW'), findsOneWidget);
+      expect(find.text('STORES'), findsOneWidget);
+      expect(find.text('ORDERS'), findsOneWidget);
+      expect(find.text('CATALOG'), findsOneWidget);
+
+      // Merchant features must not exist on the admin side.
+      expect(find.text('CAMPAIGN STORES'), findsNothing);
+      expect(find.text('CREATE CAMPAIGN STORE'), findsNothing);
+      expect(find.text('MANAGE STORE'), findsNothing);
+      expect(find.text('COLLECTIONS'), findsNothing);
 
       expect(find.text('Pending School Store'), findsOneWidget);
-      
-      await tester.tap(find.text('CAMPAIGN STORES'));
-      await tester.pumpAndSettle();
-      
-      expect(find.text('TCA Fall Campaign'), findsOneWidget);
     });
 
-    testWidgets('Admin can approve a pending store', (tester) async {
-      await auth.login('admin@commissionapparel.com', 'password123');
-      await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth, firestore));
-      await tester.pumpAndSettle();
+    testWidgets('Admin can approve a pending store (upgrades owner to coach)', (tester) async {
+      await openDashboard(tester);
 
       expect(find.text('APPROVE'), findsOneWidget);
-      await tester.tap(find.text('APPROVE'));
+      await tapVisible(tester, find.text('APPROVE'));
+      await tester.pumpAndSettle();
+      await tester.tap(inDialog('CONFIRM'));
       await tester.pumpAndSettle();
 
       final doc = await firestore.collection('teamStores').doc('store-4').get();
       expect(doc.data()?['status'], 'approved');
+      expect(doc.data()?['pricingApproved'], true);
+      expect(doc.data()?['isArchived'], false);
+
+      final owner = await firestore.collection('users').doc(doc.data()?['userId'] as String).get();
+      expect(owner.data()?['role'], 'coach');
     });
 
-    testWidgets('Admin can create a campaign store', (tester) async {
-      await auth.login('admin@commissionapparel.com', 'password123');
-      await tester.pumpWidget(createTestApp(const AdminDashboardScreen(), auth, firestore));
+    testWidgets('Admin can decline a pending store with a reason', (tester) async {
+      await openDashboard(tester);
+
+      await tapVisible(tester, find.text('DECLINE'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Incomplete team details');
+      await tester.tap(inDialog('DECLINE'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('CAMPAIGN STORES'));
-      await tester.pumpAndSettle();
-
-      final btn = find.widgetWithText(ElevatedButton, 'CREATE CAMPAIGN STORE');
-      await tester.ensureVisible(btn);
-      await tester.pumpAndSettle();
-      await tester.tap(btn);
-      await tester.pumpAndSettle();
-
-      final qs = await firestore.collection('teamStores').where('name', isEqualTo: 'New Campaign Store').limit(1).get();
-      final doc = qs.docs.first.data();
-      expect(doc['name'], 'New Campaign Store');
-      expect(doc['status'], 'approved');
-      expect(doc['userId'], 'user-admin-1');
-      expect(doc['packageType'], 'individual');
+      final doc = await firestore.collection('teamStores').doc('store-4').get();
+      expect(doc.data()?['status'], 'declined');
+      expect(doc.data()?['declineReason'], 'Incomplete team details');
     });
 
-    testWidgets('Admin Store Edit Screen renders components', (tester) async {
-      await auth.login('admin@commissionapparel.com', 'password123');
-      await tester.pumpWidget(createTestApp(const AdminStoreEditScreen(storeId: 'store-1'), auth, firestore));
+    testWidgets('Admin can suspend and restore a store', (tester) async {
+      await openDashboard(tester);
+
+      await tester.tap(find.text('STORES'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Edit Store', skipOffstage: false), findsWidgets);
-      expect(find.text('UPDATE COVER IMAGE'), findsOneWidget);
-      expect(find.text('SAVE PRICING'), findsOneWidget);
-      expect(find.text('Package Management'), findsOneWidget);
-    });
+      Future<int> archivedCount() async => (await firestore
+              .collection('teamStores')
+              .where('isArchived', isEqualTo: true)
+              .get())
+          .docs
+          .length;
 
-    testWidgets('Admin can update bulk pricing', (tester) async {
-      await auth.login('admin@commissionapparel.com', 'password123');
-      await tester.pumpWidget(createTestApp(const AdminStoreEditScreen(storeId: 'store-1'), auth, firestore));
+      final before = await archivedCount();
+
+      await tapVisible(tester, find.text('SUSPEND').first);
       await tester.pumpAndSettle();
-
-      final textFields = find.byType(TextField);
-      expect(textFields, findsWidgets);
-
-      await tester.enterText(textFields.first, '12.0');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.tap(inDialog('SUSPEND'));
       await tester.pumpAndSettle();
+      expect(await archivedCount(), before + 1);
+      expect(find.text('RESTORE'), findsWidgets);
 
-      await tester.ensureVisible(find.text('SAVE PRICING'));
+      await tapVisible(tester, find.text('RESTORE').first);
       await tester.pumpAndSettle();
-      
-      await tester.tap(find.text('SAVE PRICING'));
+      await tester.tap(inDialog('RESTORE'));
       await tester.pumpAndSettle();
-
-      expect(find.text('Store item pricing updated.'), findsOneWidget);
-    });
-
-    testWidgets('Admin can archive and unarchive a store', (tester) async {
-      await auth.login('admin@commissionapparel.com', 'password123');
-      await tester.pumpWidget(createTestApp(const AdminStoreEditScreen(storeId: 'store-1'), auth, firestore));
-      await tester.pumpAndSettle();
-
-      expect(find.text('ARCHIVE STORE'), findsOneWidget);
-      await tester.tap(find.text('ARCHIVE STORE'));
-      await tester.pumpAndSettle();
-      
-      expect(find.text('UNARCHIVE STORE'), findsOneWidget);
-
-      await tester.tap(find.text('UNARCHIVE STORE'));
-      await tester.pumpAndSettle();
-      
-      expect(find.text('ARCHIVE STORE'), findsOneWidget);
+      expect(await archivedCount(), before);
     });
   });
 }
-
-
-
-
-
-
-
-
-
-
-

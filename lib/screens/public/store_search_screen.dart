@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+
 import '../../widgets/app_scaffold.dart';
 import '../../models/team_store.dart';
 import '../../models/user.dart';
 import '../../services/store_service.dart';
 import '../../services/auth_service.dart';
 
+import '../../widgets/managed_image.dart';
 
 class StoreSearchScreen extends StatefulWidget {
   const StoreSearchScreen({super.key});
@@ -17,7 +19,7 @@ class StoreSearchScreen extends StatefulWidget {
 
 class _StoreSearchScreenState extends State<StoreSearchScreen> {
   String _searchQuery = '';
-  
+
   @override
   Widget build(BuildContext context) {
     final firestore = context.read<FirebaseFirestore>();
@@ -27,11 +29,17 @@ class _StoreSearchScreenState extends State<StoreSearchScreen> {
       body: FutureBuilder<List<TeamStore>>(
         future: StoreService.getActiveStores(firestore),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.connectionState == ConnectionState.waiting)
+            return const Center(child: CircularProgressIndicator());
           final stores = snapshot.data ?? [];
-          
-          final filteredStores = stores.where((s) => s.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-          
+
+          final filteredStores = stores
+              .where(
+                (s) =>
+                    s.name.toLowerCase().contains(_searchQuery.toLowerCase()),
+              )
+              .toList();
+
           return Column(
             children: [
               Padding(
@@ -50,27 +58,52 @@ class _StoreSearchScreenState extends State<StoreSearchScreen> {
                   itemBuilder: (context, index) {
                     final store = filteredStores[index];
                     return FutureBuilder<User?>(
-                      future: AuthService(firestore: firestore).getUserById(store.userId),
+                      future: AuthService(firestore: firestore)
+                          .getUserById(store.userId),
                       builder: (context, userSnap) {
                         final coach = userSnap.data;
                         return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 8.0,
+                          ),
                           child: ListTile(
-                            leading: const CircleAvatar(child: Icon(Icons.store)),
+                            leading: CircleAvatar(
+                              child: ClipOval(
+                                child: AppImage(
+                                  store.logoPath ?? store.coverImagePath,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                  placeholderIcon: Icons.store,
+                                ),
+                              ),
+                            ),
                             title: Text(store.name),
-                            subtitle: Text(coach != null ? 'Coach: ${coach.fullName}' : 'Coach: Unknown'),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () => Navigator.pushNamed(context, '/store', arguments: store.id),
+                            subtitle: Text(
+                              coach != null
+                                  ? 'Coach: ${coach.fullName}'
+                                  : 'Coach: Unknown',
+                            ),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                            ),
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              '/store/detail',
+                              arguments: store.id,
+                            ),
                           ),
                         );
-                      }
+                      },
                     );
                   },
                 ),
               ),
             ],
           );
-        }
+        },
       ),
     );
   }

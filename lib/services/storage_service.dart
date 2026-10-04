@@ -1,58 +1,73 @@
-
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+
 import 'package:cloudinary_public/cloudinary_public.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../config/app_config.dart';
+
+/// Thrown when an image cannot be picked or uploaded. [message] is safe to
+/// show to end users.
+class ImageUploadException implements Exception {
+  final String message;
+  const ImageUploadException(this.message);
+  @override
+  String toString() => message;
+}
+
+/// Single entry point for every image upload in the app.
+///
+/// * Picks from the gallery with platform-side downscaling/compression
+///   (`maxWidth` / `imageQuality`) so large photos never hit the network.
+/// * Validates size before upload.
+/// * Uploads to Cloudinary into a logical [folder] and returns the HTTPS URL.
 class StorageService {
-  final FirebaseStorage _storage;
+  final ImagePicker _picker;
+  final CloudinaryPublic _cloudinary;
 
-  StorageService({FirebaseStorage? storage}) : _storage = storage ?? FirebaseStorage.instance;
+  StorageService({ImagePicker? picker, CloudinaryPublic? cloudinary})
+      : _picker = picker ?? ImagePicker(),
+        _cloudinary = cloudinary ??
+            CloudinaryPublic(
+              AppConfig.cloudinaryCloudName,
+              AppConfig.cloudinaryUploadPreset,
+              cache: false,
+            );
 
-  /// Uploads a file to Firebase Storage at [storagePath] and returns the download URL.
-  /// Returns null if the upload fails.
-  Future<String?> uploadFile(String storagePath, File file) async {
+  /// Lets the user pick an image and uploads it.
+  ///
+  /// Returns `null` if the user cancels. Throws [ImageUploadException] on
+  /// validation or network failure.
+  Future<String?> pickAndUpload({required String folder}) async {
+    final XFile? picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: AppConfig.imageMaxDimension.toDouble(),
+      maxHeight: AppConfig.imageMaxDimension.toDouble(),
+      imageQuality: AppConfig.imageQuality,
+    );
+    if (picked == null) return null;
+    return uploadFile(folder, File(picked.path));
+  }
+
+  /// Uploads an already-selected [file] into [folder].
+  Future<String> uploadFile(String folder, File file) async {
+    final size = await file.length();
+    if (size > AppConfig.maxImageBytes) {
+      throw const ImageUploadException('Image is too large (max 10 MB).');
+    }
     try {
-      final cloudinary = CloudinaryPublic('brtamhix', 'commission_apparel', cache: false);
-      CloudinaryResponse response = await cloudinary.uploadFile(CloudinaryFile.fromFile(file.path, resourceType: CloudinaryResourceType.Image));
-      
+      final response = await _cloudinary.uploadFile(
+        CloudinaryFile.fromFile(
+          file.path,
+          folder: folder,
+          resourceType: CloudinaryResourceType.Image,
+        ),
+      );
       return response.secureUrl;
     } catch (e) {
       debugPrint('StorageService upload error: $e');
-      return null; // Return null instead of silently converting to dummy data
+      throw const ImageUploadException(
+          'Upload failed. Check your connection and try again.');
     }
-  }
-
-  /// Deletes a file from Firebase Storage using its [downloadUrl].
-  /// Ignores non-Firebase URLs (like local paths or mock image URLs).
-  Future<void> deleteFileByUrl(String? downloadUrl) async {
-    if (downloadUrl == null) return;
-    
-    // Safety check: Only attempt to delete actual Firebase Storage URLs
-    if (!downloadUrl.startsWith('http') && !downloadUrl.startsWith('gs://')) {
-      return;
-    }
-    if (!downloadUrl.contains('firebasestorage.googleapis.com')) {
-      return;
-    }
-
-    try {
-      final ref = _storage.refFromURL(downloadUrl);
-      await ref.delete();
-    } catch (e) {
-      debugPrint('StorageService delete error: $e');
-    }
-  }
-
-  /// Convenience method to upload a new file and delete the old one only on success.
-  Future<String?> replaceFile(String storagePath, File newFile, String? oldFileUrl) async {
-    final newUrl = await uploadFile(storagePath, newFile);
-    
-    // Only delete the old file if the upload succeeded and it's a different file
-    if (newUrl != null && oldFileUrl != null && oldFileUrl != newUrl) {
-      await deleteFileByUrl(oldFileUrl);
-    }
-    
-    return newUrl;
   }
 }
