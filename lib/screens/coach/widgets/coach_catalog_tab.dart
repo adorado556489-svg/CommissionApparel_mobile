@@ -4,10 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../../services/catalog_service.dart';
 import '../../../services/store_service.dart';
 import '../../../models/team_store.dart';
-import '../../../models/design_catalog.dart';
 import '../../../models/store_item.dart';
 import '../../../services/storage_service.dart';
 import '../../../utils/formatters.dart';
@@ -29,9 +27,7 @@ class CoachCatalogTab extends StatefulWidget {
 
 class _CoachCatalogTabState extends State<CoachCatalogTab>
     with AutomaticKeepAliveClientMixin {
-  List<DesignCatalog> _masterBlanks = const [];
   List<StoreItem> _items = const [];
-  bool _blanksLoading = true;
   bool _itemsLoading = true;
   String? _error;
   StreamSubscription<List<StoreItem>>? _itemsSub;
@@ -42,7 +38,6 @@ class _CoachCatalogTabState extends State<CoachCatalogTab>
   @override
   void initState() {
     super.initState();
-    _loadBlanks();
     _itemsSub = StoreService.watchStoreItems(
       context.read<FirebaseFirestore>(),
       widget.store.id,
@@ -71,29 +66,6 @@ class _CoachCatalogTabState extends State<CoachCatalogTab>
     super.dispose();
   }
 
-  Future<void> _loadBlanks() async {
-    try {
-      final blanks = (await CatalogService.getMasterBlankCatalog(
-        context.read<FirebaseFirestore>(),
-      ))
-          .where((blank) => blank.isActive)
-          .toList()
-        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-      if (!mounted) return;
-      setState(() {
-        _masterBlanks = blanks;
-        _blanksLoading = false;
-      });
-    } catch (e) {
-      debugPrint('CoachCatalogTab blanks failed: $e');
-      if (!mounted) return;
-      setState(() {
-        _blanksLoading = false;
-        _error = 'Could not load the blank catalog.';
-      });
-    }
-  }
-
   void _toast(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -101,7 +73,7 @@ class _CoachCatalogTabState extends State<CoachCatalogTab>
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _openCreateProductDialog(DesignCatalog blank) {
+  void _openCreateProductDialog() {
     if (!widget.store.isApproved) {
       _toast('Re-open your store to add products.');
       return;
@@ -109,7 +81,6 @@ class _CoachCatalogTabState extends State<CoachCatalogTab>
     showDialog(
       context: context,
       builder: (ctx) => _CreateProductDialog(
-        blank: blank,
         storeId: widget.store.id,
       ),
     );
@@ -218,45 +189,18 @@ class _CoachCatalogTabState extends State<CoachCatalogTab>
             ),
           ),
         SliverToBoxAdapter(
-          child: _heading(
-            'Add a product',
-            subtitle: 'Choose a blank, upload your team design and set your price.',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: ElevatedButton.icon(
+              onPressed: _openCreateProductDialog,
+              icon: const Icon(Icons.add),
+              label: const Text('ADD CUSTOM PRODUCT'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
           ),
         ),
-        if (_blanksLoading)
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          )
-        else if (_masterBlanks.isEmpty)
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text('No blank products are available right now.'),
-            ),
-          )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            sliver: SliverGrid.builder(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 240,
-                mainAxisExtent: 270,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: _masterBlanks.length,
-              itemBuilder: (context, index) {
-                final blank = _masterBlanks[index];
-                return _BlankCard(
-                  blank: blank,
-                  onCustomize: () => _openCreateProductDialog(blank),
-                );
-              },
-            ),
-          ),
       ],
     );
   }
@@ -328,64 +272,6 @@ class _ItemTile extends StatelessWidget {
               tooltip: 'Remove product',
               icon: const Icon(Icons.delete_outline, color: Colors.red),
               onPressed: onRemove,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A blank from the admin catalog that can be customised into a product.
-class _BlankCard extends StatelessWidget {
-  final DesignCatalog blank;
-  final VoidCallback onCustomize;
-
-  const _BlankCard({required this.blank, required this.onCustomize});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onCustomize,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Container(
-                color: Colors.black12,
-                child: blank.imagePaths.isNotEmpty
-                    ? AppImage(blank.imagePaths.first, fit: BoxFit.cover)
-                    : const Icon(Icons.checkroom, size: 48, color: Colors.grey),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    blank.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    'Base cost ${Fmt.money(blank.wholesalePrice)}',
-                    style: const TextStyle(color: Colors.red, fontSize: 12),
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: onCustomize,
-                      child: const Text('CUSTOMIZE'),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -466,11 +352,9 @@ class _EditPriceDialogState extends State<_EditPriceDialog> {
 }
 
 class _CreateProductDialog extends StatefulWidget {
-  final DesignCatalog blank;
   final String storeId;
 
   const _CreateProductDialog({
-    required this.blank,
     required this.storeId,
   });
 
@@ -484,16 +368,14 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
   late TextEditingController _retailPriceController;
   String? _uploadedImageUrl;
   bool _isUploading = false;
+  bool _hasNameField = false;
+  bool _hasNumberField = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(
-      text: "Custom ${widget.blank.name}",
-    );
-    _retailPriceController = TextEditingController(
-      text: (widget.blank.wholesalePrice + 10).toStringAsFixed(2),
-    );
+    _nameController = TextEditingController();
+    _retailPriceController = TextEditingController();
   }
 
   Future<void> _pickImage() async {
@@ -529,31 +411,19 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
     }
 
     final retailPrice = double.tryParse(_retailPriceController.text) ?? 0.0;
-    if (retailPrice < widget.blank.wholesalePrice) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Retail price cannot be lower than base cost.'),
-        ),
-      );
-      return;
-    }
-
     final firestore = context.read<FirebaseFirestore>();
 
     final item = StoreItem(
       id: firestore.collection('storeItems').doc().id,
       teamStoreId: widget.storeId,
-      designCatalogId: widget.blank.id,
       name: _nameController.text.trim(),
-      types: widget.blank.types.isNotEmpty
-          ? widget.blank.types
-          : [widget.blank.type ?? 'Apparel'],
+      types: const ['Apparel'],
       imagePaths: [_uploadedImageUrl!],
-      wholesalePrice: widget.blank.wholesalePrice,
+      wholesalePrice: 0.0,
       retailPrice: retailPrice,
-      hasNameField: widget.blank.hasNameField,
-      hasNumberField: widget.blank.hasNumberField,
-      availableSizes: widget.blank.availableSizes,
+      hasNameField: _hasNameField,
+      hasNumberField: _hasNumberField,
+      availableSizes: const [],
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -567,20 +437,17 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Could not add product: $e')));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final margin =
-        (double.tryParse(_retailPriceController.text) ?? 0.0) -
-        widget.blank.wholesalePrice;
-
     return AlertDialog(
-      title: const Text('Customize Product'),
+      title: const Text('Add Custom Product'),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -588,11 +455,6 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Base Cost: \$${widget.blank.wholesalePrice.toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -611,23 +473,26 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                onChanged: (v) => setState(() {}),
                 validator: (v) {
                   final price = double.tryParse(v ?? '');
-                  if (price == null || price <= 0)
+                  if (price == null || price <= 0) {
                     return 'Enter a valid price greater than zero.';
-                  if (price < widget.blank.wholesalePrice)
-                    return 'Price must cover the base cost.';
+                  }
                   return null;
                 },
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Your Profit: \$${margin.toStringAsFixed(2)} per item',
-                style: TextStyle(
-                  color: margin > 0 ? Colors.green : Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
+              const SizedBox(height: 16),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Require player name personalization'),
+                value: _hasNameField,
+                onChanged: (v) => setState(() => _hasNameField = v ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Require player number personalization'),
+                value: _hasNumberField,
+                onChanged: (v) => setState(() => _hasNumberField = v ?? false),
               ),
               const SizedBox(height: 24),
               const Text(

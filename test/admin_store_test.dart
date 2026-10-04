@@ -75,7 +75,6 @@ void main() {
       expect(find.textContaining('OVERVIEW'), findsOneWidget);
       expect(find.text('STORES'), findsOneWidget);
       expect(find.text('ORDERS'), findsOneWidget);
-      expect(find.text('CATALOG'), findsOneWidget);
 
       // Merchant features must not exist on the admin side.
       expect(find.text('CAMPAIGN STORES'), findsNothing);

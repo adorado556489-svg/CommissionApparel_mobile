@@ -17,7 +17,6 @@ import '../../widgets/app_scaffold.dart';
 import '../../widgets/glass_panel.dart';
 import '../../widgets/managed_image.dart';
 import '../../widgets/status_chip.dart';
-import 'widgets/admin_catalog_tab.dart';
 
 /// Platform-operator console.
 ///
@@ -45,7 +44,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -230,7 +229,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
               Tab(text: pending > 0 ? 'OVERVIEW ($pending)' : 'OVERVIEW'),
               const Tab(text: 'STORES'),
               const Tab(text: 'ORDERS'),
-              const Tab(text: 'CATALOG'),
             ],
           ),
           Expanded(
@@ -240,7 +238,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
                 _scrollable(_buildOverviewTab()),
                 _scrollable(_buildStoresTab()),
                 _scrollable(_buildOrdersTab()),
-                const AdminCatalogTab(),
               ],
             ),
           ),
