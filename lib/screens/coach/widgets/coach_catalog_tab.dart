@@ -379,25 +379,32 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
   }
 
   Future<void> _pickImage() async {
-    setState(() => _isUploading = true);
     try {
       final storage = StorageService();
-      final url = await storage.pickAndUpload(
-        folder: 'stores/${widget.storeId}/designs',
+      // 1. Pick the file without showing "Uploading..." so the UI doesn't freeze
+      final file = await storage.pickImage();
+      if (file == null) return; // User canceled
+
+      // 2. Only show the spinner once the network upload actually begins
+      setState(() => _isUploading = true);
+      
+      final url = await storage.uploadFile(
+        'stores/${widget.storeId}/designs', 
+        file,
       );
-      if (url != null) {
+      
+      if (mounted) {
         setState(() {
           _uploadedImageUrl = url;
           _isUploading = false;
         });
-      } else {
-        setState(() => _isUploading = false);
       }
     } catch (e) {
-      if (mounted) setState(() => _isUploading = false);
-      if (mounted)
+      if (mounted) {
+        setState(() => _isUploading = false);
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      }
     }
   }
 
@@ -501,13 +508,15 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
               ),
               const SizedBox(height: 8),
               if (_uploadedImageUrl != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: AppImage(
-                    _uploadedImageUrl!,
-                    height: 150,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+                SizedBox(
+                  width: double.infinity,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: AppImage(
+                      _uploadedImageUrl!,
+                      height: 150,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),

@@ -45,8 +45,11 @@ class AppImage extends StatelessWidget {
 
   Widget _network(BuildContext context, BoxConstraints constraints) {
     final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
-    final logical = width ??
-        (constraints.hasBoundedWidth && constraints.maxWidth.isFinite ? constraints.maxWidth : 400.0);
+    final logical = (width != null && width!.isFinite)
+        ? width!
+        : (constraints.hasBoundedWidth && constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 400.0);
     final decodePx = (logical * dpr).round().clamp(100, 1200);
 
     return Image.network(

@@ -23,22 +23,13 @@ class ImageUploadException implements Exception {
 /// * Uploads to Cloudinary into a logical [folder] and returns the HTTPS URL.
 class StorageService {
   final ImagePicker _picker;
-  final CloudinaryPublic _cloudinary;
 
-  StorageService({ImagePicker? picker, CloudinaryPublic? cloudinary})
-      : _picker = picker ?? ImagePicker(),
-        _cloudinary = cloudinary ??
-            CloudinaryPublic(
-              AppConfig.cloudinaryCloudName,
-              AppConfig.cloudinaryUploadPreset,
-              cache: false,
-            );
+  StorageService({ImagePicker? picker})
+      : _picker = picker ?? ImagePicker();
 
-  /// Lets the user pick an image and uploads it.
-  ///
-  /// Returns `null` if the user cancels. Throws [ImageUploadException] on
-  /// validation or network failure.
-  Future<String?> pickAndUpload({required String folder}) async {
+  /// Lets the user pick an image from the gallery.
+  /// Returns `null` if the user cancels.
+  Future<File?> pickImage() async {
     final XFile? picked = await _picker.pickImage(
       source: ImageSource.gallery,
       maxWidth: AppConfig.imageMaxDimension.toDouble(),
@@ -46,7 +37,17 @@ class StorageService {
       imageQuality: AppConfig.imageQuality,
     );
     if (picked == null) return null;
-    return uploadFile(folder, File(picked.path));
+    return File(picked.path);
+  }
+
+  /// Lets the user pick an image and uploads it.
+  ///
+  /// Returns `null` if the user cancels. Throws [ImageUploadException] on
+  /// validation or network failure.
+  Future<String?> pickAndUpload({required String folder}) async {
+    final file = await pickImage();
+    if (file == null) return null;
+    return uploadFile(folder, file);
   }
 
   /// Uploads an already-selected [file] into [folder].
@@ -55,15 +56,34 @@ class StorageService {
     if (size > AppConfig.maxImageBytes) {
       throw const ImageUploadException('Image is too large (max 10 MB).');
     }
+    
     try {
-      final response = await _cloudinary.uploadFile(
+      final cloudName = AppConfig.cloudinaryCloudName;
+      final preset = AppConfig.cloudinaryUploadPreset;
+      
+      final cloudinary = CloudinaryPublic(
+        cloudName,
+        preset,
+        cache: false,
+      );
+      
+      // We add a strict 15-second timeout. If the emulator network is 
+      // misconfigured or extremely slow, this prevents an infinite UI hang 
+      // (where the spinner just spins forever).
+      final response = await cloudinary.uploadFile(
         CloudinaryFile.fromFile(
           file.path,
           folder: folder,
           resourceType: CloudinaryResourceType.Image,
         ),
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw const ImageUploadException('Upload timed out. Check your internet connection.'),
       );
+      
       return response.secureUrl;
+    } on ImageUploadException {
+      rethrow;
     } catch (e) {
       debugPrint('StorageService upload error: $e');
       throw const ImageUploadException(

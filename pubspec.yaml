@@ -19,7 +19,8 @@ dependencies:
   cloud_firestore: ^6.10.0
   firebase_storage: ^13.6.0
   google_sign_in: ^6.2.2
-  cloudinary_public: ^0.23.1
+  cloudinary_public: ^2.0.0
+  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:
